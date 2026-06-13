@@ -5,6 +5,13 @@ import { safeFetch } from '../util/fetch';
 interface HeaderCheck {
   label: string;
   present: (h: Record<string, string>) => boolean;
+  /**
+   * Advisory headers add hardening but their absence is not a real weakness:
+   * browsers already apply a safe default. We never raise a finding for an
+   * advisory-only gap (e.g. a site missing just Referrer-Policy, which the
+   * browser defaults to strict-origin-when-cross-origin) to avoid noise.
+   */
+  advisory?: boolean;
 }
 
 const HEADER_CHECKS: HeaderCheck[] = [
@@ -16,7 +23,7 @@ const HEADER_CHECKS: HeaderCheck[] = [
   },
   { label: 'Strict-Transport-Security', present: (h) => 'strict-transport-security' in h },
   { label: 'X-Content-Type-Options', present: (h) => 'x-content-type-options' in h },
-  { label: 'Referrer-Policy', present: (h) => 'referrer-policy' in h },
+  { label: 'Referrer-Policy', present: (h) => 'referrer-policy' in h, advisory: true },
 ];
 
 const CORS_PROBE_ORIGIN = 'https://vibescan-cors-probe.example';
@@ -27,48 +34,63 @@ export async function detectOwasp(collected: CollectResult): Promise<Finding[]> 
   const h = collected.responseHeaders;
   const isHttps = collected.origin.startsWith('https://');
 
-  // 1) Missing security headers (HSTS only meaningful on https).
-  const missing = HEADER_CHECKS.filter((c) => {
-    if (c.label === 'Strict-Transport-Security' && !isHttps) return false;
-    return !c.present(h);
-  }).map((c) => c.label);
+  // Did the main navigation actually return a response? A real HTTP response
+  // always carries headers (Date, Content-Type, ...), so empty headers means
+  // navigation failed (timeout, dropped connection, SSRF abort). Without this
+  // guard the header checks below read an empty map as "every header missing"
+  // and emit false positives (missing_security_headers + clickjacking) for any
+  // site that merely flapped during the scan.
+  const gotResponse = collected.status !== 0 && Object.keys(h).length > 0;
 
-  if (missing.length > 0) {
-    findings.push({
-      type: 'missing_security_headers',
-      severity: missing.length >= 3 ? 'medium' : 'low',
-      category: 'owasp',
-      summary: `Missing ${missing.length} security header(s): ${missing.join(', ')}.`,
-      evidence: missing.join(', '),
-      params: { headers: missing.join(', ') },
+  if (gotResponse) {
+    // 1) Missing security headers (HSTS only meaningful on https).
+    const missingChecks = HEADER_CHECKS.filter((c) => {
+      if (c.label === 'Strict-Transport-Security' && !isHttps) return false;
+      return !c.present(h);
     });
-  }
+    const missing = missingChecks.map((c) => c.label);
+    // Only raise a finding when a *core* (non-advisory) header is missing.
+    // An advisory-only gap (e.g. just Referrer-Policy) is not a real weakness
+    // because the browser applies a safe default, so we stay silent on it.
+    const missingCore = missingChecks.filter((c) => !c.advisory).length;
 
-  // 2) Clickjacking: no frame protection at all.
-  const frameProtected =
-    'x-frame-options' in h || /frame-ancestors/i.test(h['content-security-policy'] ?? '');
-  if (!frameProtected) {
-    findings.push({
-      type: 'clickjacking',
-      severity: 'low',
-      category: 'owasp',
-      summary: 'Your site can be embedded in a hidden frame by other sites.',
-    });
-  }
-
-  // 3) Weak CSP: present but neutered by unsafe-inline / unsafe-eval / wildcard script source.
-  const csp = h['content-security-policy'];
-  if (csp) {
-    const weakness = analyzeCsp(csp);
-    if (weakness) {
+    if (missingCore > 0) {
       findings.push({
-        type: 'weak_csp',
-        severity: weakness.includes('unsafe-eval') ? 'medium' : 'low',
+        type: 'missing_security_headers',
+        severity: missingCore >= 3 ? 'medium' : 'low',
         category: 'owasp',
-        summary: `Your Content-Security-Policy is weakened by ${weakness}.`,
-        evidence: weakness,
-        params: { weakness },
+        summary: `Missing ${missing.length} security header(s): ${missing.join(', ')}.`,
+        evidence: missing.join(', '),
+        params: { headers: missing.join(', ') },
       });
+    }
+
+    // 2) Clickjacking: no frame protection at all.
+    const frameProtected =
+      'x-frame-options' in h || /frame-ancestors/i.test(h['content-security-policy'] ?? '');
+    if (!frameProtected) {
+      findings.push({
+        type: 'clickjacking',
+        severity: 'low',
+        category: 'owasp',
+        summary: 'Your site can be embedded in a hidden frame by other sites.',
+      });
+    }
+
+    // 3) Weak CSP: present but neutered by unsafe-inline / unsafe-eval / wildcard script source.
+    const csp = h['content-security-policy'];
+    if (csp) {
+      const weakness = analyzeCsp(csp);
+      if (weakness) {
+        findings.push({
+          type: 'weak_csp',
+          severity: weakness.includes('unsafe-eval') ? 'medium' : 'low',
+          category: 'owasp',
+          summary: `Your Content-Security-Policy is weakened by ${weakness}.`,
+          evidence: weakness,
+          params: { weakness },
+        });
+      }
     }
   }
 

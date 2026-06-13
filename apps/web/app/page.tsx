@@ -10,7 +10,7 @@ import { SiteHeader } from '../components/SiteHeader';
 type State =
   | { phase: 'idle' }
   | { phase: 'loading'; label: string; mode: 'url' | 'code' }
-  | { phase: 'done'; result: ScanResult; lastInput: ScanInput }
+  | { phase: 'done'; result: ScanResult; lastInput: ScanInput; id?: string }
   | { phase: 'error'; message: string };
 
 export default function Home() {
@@ -34,7 +34,8 @@ export default function Home() {
         setState({ phase: 'error', message: data?.error ?? 'Something went wrong. Please try again.' });
         return;
       }
-      setState({ phase: 'done', result: data as ScanResult, lastInput: input });
+      const { id, ...result } = data as ScanResult & { id?: string };
+      setState({ phase: 'done', result: result as ScanResult, lastInput: input, id });
     } catch {
       setState({ phase: 'error', message: 'Network error. Please try again.' });
     }
@@ -80,7 +81,19 @@ export default function Home() {
 
       {state.phase === 'done' && (
         <section className="mt-10 flex w-full flex-col items-center">
-          <Report result={state.result} onRescan={rescan} />
+          <Report
+            result={state.result}
+            onRescan={rescan}
+            shareUrl={state.id ? `/r/${state.id}` : undefined}
+          />
+          {state.id && (
+            <p className="mt-4 text-center text-xs text-white/40">
+              This report is saved.{' '}
+              <a href={`/r/${state.id}`} className="underline hover:text-white/70">
+                Open its permanent link →
+              </a>
+            </p>
+          )}
           <button
             onClick={() => setState({ phase: 'idle' })}
             className="mt-8 text-sm text-white/40 hover:text-white/70"

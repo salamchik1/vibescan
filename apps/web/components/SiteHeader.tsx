@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
 /** Shared top bar used on the scanner and the tools pages. */
-export function SiteHeader({ active }: { active?: 'scan' | 'tools' }) {
+export function SiteHeader({ active }: { active?: 'scan' | 'tools' | 'account' }) {
   return (
     <header className="flex w-full items-center justify-between">
       <Link href="/" className="flex items-center gap-2 font-ui font-semibold text-white">
@@ -23,6 +23,14 @@ export function SiteHeader({ active }: { active?: 'scan' | 'tools' }) {
           }`}
         >
           Tools
+        </Link>
+        <Link
+          href="/dashboard"
+          className={`rounded-full px-3 py-1 transition ${
+            active === 'account' ? 'bg-white/10 text-white' : 'text-white/60 hover:text-white'
+          }`}
+        >
+          Account
         </Link>
       </nav>
     </header>

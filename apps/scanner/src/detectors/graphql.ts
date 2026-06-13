@@ -12,32 +12,40 @@ const INTROSPECTION = JSON.stringify({ query: 'query{__schema{queryType{name}}}'
 export async function detectGraphql(collected: CollectResult): Promise<Finding[]> {
   if (!collected.origin) return [];
 
-  for (const path of ENDPOINTS) {
-    try {
-      const res = await safeFetch(collected.origin + path, {
-        method: 'POST',
-        body: INTROSPECTION,
-        timeoutMs: 7_000,
-        maxBytes: 50_000,
-        headers: { 'content-type': 'application/json' },
-      });
-      if (res.status !== 200) continue;
-      if (!(res.headers['content-type'] ?? '').includes('json')) continue;
-      if (/"__schema"/.test(res.body) && /"queryType"/.test(res.body)) {
-        return [
-          {
-            type: 'graphql_introspection',
-            severity: 'low',
-            category: 'auth',
-            summary: `GraphQL introspection is enabled at ${path}, exposing your full schema.`,
-            evidence: `POST ${path} (introspection) → 200 with __schema`,
-            params: { path },
-          },
-        ];
+  // Probe all endpoints in parallel, then report the first hit in ENDPOINTS
+  // order. Sequential probing would sum one timeout per endpoint on a slow host.
+  const hits = await Promise.all(
+    ENDPOINTS.map(async (path) => {
+      try {
+        const res = await safeFetch(collected.origin + path, {
+          method: 'POST',
+          body: INTROSPECTION,
+          timeoutMs: 7_000,
+          maxBytes: 50_000,
+          headers: { 'content-type': 'application/json' },
+        });
+        if (res.status !== 200) return null;
+        if (!(res.headers['content-type'] ?? '').includes('json')) return null;
+        if (/"__schema"/.test(res.body) && /"queryType"/.test(res.body)) return path;
+      } catch {
+        /* endpoint not reachable */
       }
-    } catch {
-      /* endpoint not reachable — try the next one */
-    }
+      return null;
+    })
+  );
+
+  const path = hits.find((p): p is string => p !== null);
+  if (path) {
+    return [
+      {
+        type: 'graphql_introspection',
+        severity: 'low',
+        category: 'auth',
+        summary: `GraphQL introspection is enabled at ${path}, exposing your full schema.`,
+        evidence: `POST ${path} (introspection) → 200 with __schema`,
+        params: { path },
+      },
+    ];
   }
 
   return [];

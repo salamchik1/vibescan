@@ -83,8 +83,16 @@ const ENGINE_LABELS: Record<string, string> = {
 
 // Entropy scan: long random-looking tokens with no obvious provider prefix.
 const TOKEN_RE = /\b[A-Za-z0-9_\-+/]{32,128}\b/g;
-const ENTROPY_THRESHOLD = 4.0; // bits/char
+const ENTROPY_THRESHOLD = 4.2; // bits/char
 const MAX_ENTROPY_FINDINGS = 5;
+// How far before a token we look for a secret-ish keyword.
+const CONTEXT_WINDOW = 48;
+// A real exposed credential almost always sits next to one of these words
+// (`apiKey: "..."`, `Authorization: "Bearer ..."`, `const token = "..."`).
+// Random base64/build-hash blobs in third-party bundles do not — so requiring
+// this context kills the bulk of false positives on large sites.
+const CONTEXT_KEYWORD_RE =
+  /(api[_-]?key|secret|token|password|passwd|pwd|auth|bearer|credential|private[_-]?key|access[_-]?key|client[_-]?secret|x-api)/i;
 
 function dedupeKey(provider: string, masked: string): string {
   return `${provider}::${masked}`;
@@ -100,7 +108,20 @@ function looksLikeNonSecret(raw: string): boolean {
   if (/^[A-Za-z]+$/.test(raw) || /^[0-9]+$/.test(raw)) return true;
   // Needs a mix of letters and digits to be key-like.
   if (!(/[A-Za-z]/.test(raw) && /[0-9]/.test(raw))) return true;
+  // Base64 blobs containing '/' or '+' are almost always encoded binary on big
+  // sites (inline assets, sourcemap chunks, ad/tracking payloads), not keys.
+  if (/[/+]/.test(raw)) return true;
   return false;
+}
+
+/**
+ * True when a secret-ish keyword (key/token/secret/auth/...) appears just before
+ * `index` in `text`. Generic high-entropy tokens are only worth reporting in this
+ * context; without it they are overwhelmingly build hashes and asset ids.
+ */
+function hasSecretContext(text: string, index: number): boolean {
+  const start = Math.max(0, index - CONTEXT_WINDOW);
+  return CONTEXT_KEYWORD_RE.test(text.slice(start, index));
 }
 
 export interface DetectSecretsOptions {
@@ -194,6 +215,9 @@ export async function detectSecrets(
     if (matchedRaws.some((mr) => mr.includes(raw) || raw.includes(mr))) continue;
     if (looksLikeNonSecret(raw)) continue;
     if (shannonEntropy(raw) < ENTROPY_THRESHOLD) continue;
+    // Require a nearby secret-ish keyword: this is what separates a real exposed
+    // credential from random build/asset blobs on large third-party sites.
+    if (m.index === undefined || !hasSecretContext(text, m.index)) continue;
     const masked = maskSecret(raw);
     const key = dedupeKey('High-entropy token', masked);
     if (seen.has(key)) continue;

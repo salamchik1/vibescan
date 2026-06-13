@@ -89,16 +89,21 @@ export async function runScan(rawUrl: string): Promise<ScanResult> {
       const collected = await collect(url.toString());
       notes.push(...collected.notes);
 
-      const findings: Finding[] = [];
-      findings.push(...(await safe('Secrets', () => detectSecrets(collected, { verify: config.verifySecrets }), notes)));
-      findings.push(...(await safe('Gitleaks', () => runGitleaks(collected), notes)));
-      findings.push(...(await safe('Supabase', () => detectSupabase(collected), notes)));
-      findings.push(...(await safe('Firebase', () => detectFirebase(collected), notes)));
-      findings.push(...(await safe('Auth', () => detectAuth(collected), notes)));
-      findings.push(...(await safe('IDOR/BOLA', () => detectIdor(collected), notes)));
-      findings.push(...(await safe('OWASP', () => detectOwasp(collected), notes)));
-      findings.push(...(await safe('Exposed files', () => detectFiles(collected), notes)));
-      findings.push(...(await safe('GraphQL', () => detectGraphql(collected), notes)));
+      // Detectors are independent and each is failure-isolated by safe(); run
+      // them concurrently so a slow host bounds the scan by the slowest single
+      // detector, not the sum of all of them.
+      const groups = await Promise.all([
+        safe('Secrets', () => detectSecrets(collected, { verify: config.verifySecrets }), notes),
+        safe('Gitleaks', () => runGitleaks(collected), notes),
+        safe('Supabase', () => detectSupabase(collected), notes),
+        safe('Firebase', () => detectFirebase(collected), notes),
+        safe('Auth', () => detectAuth(collected), notes),
+        safe('IDOR/BOLA', () => detectIdor(collected), notes),
+        safe('OWASP', () => detectOwasp(collected), notes),
+        safe('Exposed files', () => detectFiles(collected), notes),
+        safe('GraphQL', () => detectGraphql(collected), notes),
+      ]);
+      const findings: Finding[] = groups.flat();
 
       return buildResult(rawUrl, 'url', findings, notes, start);
     })(),

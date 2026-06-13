@@ -331,18 +331,26 @@ export async function detectIdor(
   const endpoints = harvestEndpoints(collected.jsCombined, collected.html);
   if (endpoints.length === 0) return [];
 
+  // Probe every endpoint concurrently (each is 3 parallel requests). On a slow
+  // host this bounds the wait at the slowest endpoint, not the sum of all.
+  const probed = await Promise.all(
+    endpoints.map(async (ep) => {
+      const nId = neighborId(ep.kind, ep.sampleId);
+      const [real, neighbor, bogus] = await Promise.all([
+        probe(fetcher, buildUrl(collected.origin, ep.template, ep.sampleId)),
+        nId ? probe(fetcher, buildUrl(collected.origin, ep.template, nId)) : Promise.resolve(null),
+        probe(fetcher, buildUrl(collected.origin, ep.template, bogusId(ep.kind, ep.sampleId))),
+      ]);
+      return { ep, real, neighbor, bogus, verdict: decide(ep, real, neighbor, bogus) };
+    })
+  );
+
   const findings: Finding[] = [];
   const seenResources = new Set<string>(); // one finding per resource — no spam
 
-  for (const ep of endpoints) {
-    const nId = neighborId(ep.kind, ep.sampleId);
-    const [real, neighbor, bogus] = await Promise.all([
-      probe(fetcher, buildUrl(collected.origin, ep.template, ep.sampleId)),
-      nId ? probe(fetcher, buildUrl(collected.origin, ep.template, nId)) : Promise.resolve(null),
-      probe(fetcher, buildUrl(collected.origin, ep.template, bogusId(ep.kind, ep.sampleId))),
-    ]);
-
-    const verdict = decide(ep, real, neighbor, bogus);
+  // Apply the per-resource dedup in the original endpoint order so the same
+  // endpoint "wins" a resource as before parallelizing.
+  for (const { ep, real, neighbor, bogus, verdict } of probed) {
     if (!verdict) continue;
     if (seenResources.has(ep.resource)) continue;
     seenResources.add(ep.resource);

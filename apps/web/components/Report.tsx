@@ -15,7 +15,17 @@ import { FindingCard } from './FindingCard';
 
 const ALL_CATEGORIES: Category[] = ['secrets', 'database', 'auth', 'owasp'];
 
-export function Report({ result, onRescan }: { result: ScanResult; onRescan: () => void }) {
+export function Report({
+  result,
+  onRescan,
+  shareUrl,
+}: {
+  result: ScanResult;
+  /** When provided, shows a Re-scan button. Omitted on the read-only /r/{id} page. */
+  onRescan?: () => void;
+  /** Permanent link to this saved report. Shows a "Copy link" button when set. */
+  shareUrl?: string;
+}) {
   const [platform, setPlatform] = useState<Platform>(detectPlatform(result.url));
   const verdict = VERDICT_META[result.verdict];
 
@@ -154,12 +164,15 @@ export function Report({ result, onRescan }: { result: ScanResult; onRescan: () 
 
       {/* CTAs — monitoring/verification land in later stages */}
       <div className="mt-8 flex flex-wrap gap-3 print:hidden">
-        <button
-          onClick={onRescan}
-          className="rounded-full bg-primary px-5 py-2.5 font-ui font-semibold text-black transition hover:bg-primary-dark"
-        >
-          Re-scan
-        </button>
+        {onRescan && (
+          <button
+            onClick={onRescan}
+            className="rounded-full bg-primary px-5 py-2.5 font-ui font-semibold text-black transition hover:bg-primary-dark"
+          >
+            Re-scan
+          </button>
+        )}
+        {shareUrl && <CopyLinkButton url={shareUrl} />}
         <button
           onClick={() => window.print()}
           title="Save the full report as a PDF"
@@ -193,5 +206,28 @@ export function Report({ result, onRescan }: { result: ScanResult; onRescan: () 
         high-impact issues — not a full penetration test.
       </p>
     </div>
+  );
+}
+
+/** "Copy link" button for a saved report's permanent URL. */
+function CopyLinkButton({ url }: { url: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={async () => {
+        try {
+          const absolute = new URL(url, window.location.origin).href;
+          await navigator.clipboard.writeText(absolute);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        } catch {
+          /* clipboard blocked — ignore */
+        }
+      }}
+      title="Copy a permanent link to this report"
+      className="rounded-full border border-white/15 px-5 py-2.5 font-ui font-semibold text-white/80 transition hover:border-white/40 hover:text-white"
+    >
+      {copied ? '✓ Link copied' : '🔗 Copy link'}
+    </button>
   );
 }

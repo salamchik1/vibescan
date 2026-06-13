@@ -1,4 +1,7 @@
 import { NextResponse } from 'next/server';
+import type { ScanResult } from '@vibescan/findings';
+import { saveScan } from '../../../lib/scans';
+import { getCurrentUser } from '../../../lib/supabase/server';
 
 // These run server-side only and are never exposed to the browser.
 const SCANNER_URL = process.env.SCANNER_URL ?? 'http://localhost:8787';
@@ -43,6 +46,15 @@ export async function POST(req: Request) {
       signal: AbortSignal.timeout(90_000),
     });
     const data = await res.json().catch(() => ({ error: 'Scanner returned an unreadable response.' }));
+
+    // Persist the finished scan so it lives at /r/{id}. Best-effort: if Supabase
+    // isn't configured (or saving fails) the scan response is returned anyway.
+    if (res.ok && data && typeof data === 'object' && Array.isArray(data.findings)) {
+      const user = await getCurrentUser().catch(() => null);
+      const id = await saveScan(data as ScanResult, user?.id ?? null);
+      if (id) return NextResponse.json({ ...data, id }, { status: res.status });
+    }
+
     return NextResponse.json(data, { status: res.status });
   } catch {
     return NextResponse.json(

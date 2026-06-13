@@ -24,8 +24,10 @@ export interface CollectResult {
 }
 
 const MAX_JS_BYTES = 8 * 1024 * 1024; // 8 MB cap across all scripts
-const NAV_TIMEOUT_MS = 25_000;
+const NAV_TIMEOUT_MS = 20_000;
 const NETWORK_IDLE_MS = 8_000;
+const NAV_MAX_ATTEMPTS = 2;
+const NAV_RETRY_DELAY_MS = 1_500;
 
 let browserPromise: Promise<Browser> | null = null;
 
@@ -120,26 +122,39 @@ export async function collect(targetUrl: string): Promise<CollectResult> {
   let responseHeaders: Record<string, string> = {};
   const setCookies: string[] = [];
 
-  try {
-    const resp = await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT_MS });
-    if (resp) {
-      status = resp.status();
-      finalUrl = resp.url();
-      responseHeaders = resp.headers();
-      // headersArray preserves every Set-Cookie separately (headers() collapses them).
-      try {
-        for (const { name, value } of await resp.headersArray()) {
-          if (name.toLowerCase() === 'set-cookie') setCookies.push(value);
+  // Navigate with a couple of retries: flaky servers intermittently drop the
+  // connection ("Empty reply"), and a single failed goto would otherwise leave
+  // status=0 / empty headers — which the header detectors must NOT read as
+  // "all headers missing". A short retry recovers the real response.
+  let lastNavError: string | null = null;
+  for (let attempt = 1; attempt <= NAV_MAX_ATTEMPTS; attempt++) {
+    try {
+      const resp = await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT_MS });
+      if (resp) {
+        status = resp.status();
+        finalUrl = resp.url();
+        responseHeaders = resp.headers();
+        // headersArray preserves every Set-Cookie separately (headers() collapses them).
+        try {
+          for (const { name, value } of await resp.headersArray()) {
+            if (name.toLowerCase() === 'set-cookie') setCookies.push(value);
+          }
+        } catch {
+          /* headersArray unavailable — fall back to the collapsed header below */
         }
-      } catch {
-        /* headersArray unavailable — fall back to the collapsed header below */
+        if (setCookies.length === 0 && responseHeaders['set-cookie']) {
+          setCookies.push(...responseHeaders['set-cookie'].split('\n'));
+        }
       }
-      if (setCookies.length === 0 && responseHeaders['set-cookie']) {
-        setCookies.push(...responseHeaders['set-cookie'].split('\n'));
-      }
+      lastNavError = null;
+      break;
+    } catch (err) {
+      lastNavError = (err as Error).message;
+      if (attempt < NAV_MAX_ATTEMPTS) await page.waitForTimeout(NAV_RETRY_DELAY_MS);
     }
-  } catch (err) {
-    notes.push(`Navigation issue: ${(err as Error).message}`);
+  }
+  if (lastNavError) {
+    notes.push(`Navigation failed after ${NAV_MAX_ATTEMPTS} attempts: ${lastNavError}`);
   }
 
   // Give late-loaded chunks a chance, but don't hang forever.

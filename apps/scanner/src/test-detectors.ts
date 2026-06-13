@@ -39,7 +39,11 @@ const collected: CollectResult = {
   finalUrl: 'https://demo.test',
   origin: '', // empty -> owasp skips network probes, runs header/clickjacking/sourcemap only
   status: 200,
-  responseHeaders: {}, // no security headers set
+  // A real response that carries no *security* headers (only the baseline
+  // Content-Type every response has). The detector's gotResponse guard treats
+  // a fully empty header map as "navigation failed", so we include this to
+  // exercise the missing-header / clickjacking paths.
+  responseHeaders: { 'content-type': 'text/html' },
   setCookies: [],
   html: '',
   scripts: [],
@@ -61,6 +65,24 @@ check('connection string password is masked', !secrets.some((f) => /S3cr3tPass/.
 check('finds Supabase service_role key', has(secrets, (f) => /service_role/.test(f.summary) && f.severity === 'critical'));
 check('all secret findings are masked (no raw sk_live_)', !secrets.some((f) => /sk_live_[A-Za-z0-9]{8,}/.test(f.summary + (f.evidence ?? ''))));
 check('OpenAI rule does not swallow the Anthropic key', !secrets.some((f) => /OpenAI/.test(f.summary) && /ant/.test(f.evidence ?? '')));
+
+// --- Generic high-entropy fallback: precision over recall -------------------
+// A random, high-entropy token with NO secret-ish keyword nearby (build hash,
+// asset blob, ad/tracking payload) must NOT be reported.
+const noiseJs = [
+  `<link href="/assets/app.${'Zx9Yw8Vu7t6'.repeat(3)}.css">`,
+  `t.src="https://ads.example/p?afid=${'Qw3Er5Ty7Ui'.repeat(3)}";`,
+].join('\n');
+const noise = await detectSecrets({ ...collected, jsCombined: noiseJs });
+check('does NOT flag high-entropy blobs without secret context', !has(noise, (f) => /high-entropy/.test(f.summary)));
+// Base64 (contains '/') is treated as encoded binary, not a key — even with context.
+const b64Js = `const apiKey = "${'AbC9/dEf2+'.repeat(4)}";`;
+const b64 = await detectSecrets({ ...collected, jsCombined: b64Js });
+check('does NOT flag base64 blobs as high-entropy secrets', !has(b64, (f) => /high-entropy/.test(f.summary)));
+// A genuinely random token DOES get flagged when a keyword sits right before it.
+const ctxJs = `const apiKey = "aB3xK9mZ2pQ7wL5vR8tN4cF6yH1jD0sGqW";`;
+const ctx = await detectSecrets({ ...collected, jsCombined: ctxJs });
+check('flags a high-entropy token that has secret context', has(ctx, (f) => /high-entropy/.test(f.summary) && f.severity === 'low'));
 
 // --- Secret liveness verification (offline, mock probe) ---------------------
 
@@ -119,6 +141,21 @@ const secured: CollectResult = {
 const owaspSecured = await detectOwasp(secured);
 check('no header findings when headers are present', !has(owaspSecured, (f) => f.type === 'missing_security_headers'));
 check('no clickjacking when frame protection present', !has(owaspSecured, (f) => f.type === 'clickjacking'));
+
+// Advisory-only gap (the Apple case): every core header is set, only the
+// browser-defaulted Referrer-Policy is absent -> not a finding.
+const advisoryOnly: CollectResult = {
+  ...secured,
+  responseHeaders: {
+    'content-security-policy': "default-src 'self'; frame-ancestors 'none'",
+    'x-frame-options': 'DENY',
+    'x-content-type-options': 'nosniff',
+    'strict-transport-security': 'max-age=63072000',
+    // no referrer-policy
+  },
+};
+const owaspAdvisory = await detectOwasp(advisoryOnly);
+check('no finding when only Referrer-Policy (advisory) is missing', !has(owaspAdvisory, (f) => f.type === 'missing_security_headers'));
 
 // Weak CSP: present but neutered by unsafe-inline.
 const weakCsp: CollectResult = {
