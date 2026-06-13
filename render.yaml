@@ -7,7 +7,10 @@ services:
     dockerfilePath: ./apps/scanner/Dockerfile
     dockerContext: .          # build from repo root (Dockerfile COPYs from root)
     region: oregon
-    plan: starter             # Playwright/Chromium needs RAM — free (512MB) tends to OOM
+    plan: free                # Free 512MB tier. Chromium is RAM-hungry: light sites
+                              # (and code-paste scans) work; heavy pages may OOM and
+                              # the service sleeps after 15 min idle (first scan slow).
+                              # Bump to `starter` (~$7/mo) for reliable full-page scans.
     healthCheckPath: /health
     autoDeploy: true
     envVars:
