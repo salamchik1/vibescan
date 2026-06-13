@@ -1,0 +1,27 @@
+# Render Blueprint — deploy the scanner as a Docker web service.
+# In Render: New > Blueprint > pick this repo. It reads this file automatically.
+services:
+  - type: web
+    name: vibescan-scanner
+    runtime: docker
+    dockerfilePath: ./apps/scanner/Dockerfile
+    dockerContext: .          # build from repo root (Dockerfile COPYs from root)
+    region: oregon
+    plan: starter             # Playwright/Chromium needs RAM — free (512MB) tends to OOM
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: SCANNER_SHARED_SECRET
+        generateValue: true   # Render generates a long random secret
+      - key: SCANNER_ALLOWED_ORIGINS
+        sync: false           # set in dashboard, e.g. https://your-app.vercel.app
+      - key: SCANNER_USE_GITLEAKS
+        value: "1"            # gitleaks binary is baked into the image
+      - key: SCANNER_VERIFY_SECRETS
+        value: "1"
+      - key: SCANNER_RATE_MAX
+        value: "5"
+      - key: SCANNER_RATE_WINDOW_MS
+        value: "60000"
+      - key: SCANNER_TIMEOUT_MS
+        value: "75000"

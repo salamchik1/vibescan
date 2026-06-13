@@ -1,0 +1,23 @@
+{
+  "name": "vibescan",
+  "version": "0.1.0",
+  "private": true,
+  "description": "VibeScan — security scanner for vibe-coded apps (free public scanner, stage 1)",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:scanner": "npm run dev --workspace @vibescan/scanner",
+    "dev:web": "npm run dev --workspace @vibescan/web",
+    "start:scanner": "npm run start --workspace @vibescan/scanner",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test:ssrf": "npm run test:ssrf --workspace @vibescan/scanner"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
