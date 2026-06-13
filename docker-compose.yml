@@ -1,0 +1,28 @@
+# One-command deploy for the scanner on any Docker host (e.g. a Timeweb VPS):
+#   1) put SCANNER_SHARED_SECRET and SCANNER_ALLOWED_ORIGINS in a .env file here
+#   2) docker compose up -d --build
+services:
+  scanner:
+    build:
+      context: .
+      dockerfile: apps/scanner/Dockerfile
+    image: vibescan-scanner
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    environment:
+      # Required: long random string; the web app must send it as x-scan-secret.
+      SCANNER_SHARED_SECRET: ${SCANNER_SHARED_SECRET:?set SCANNER_SHARED_SECRET in .env}
+      # Your web origin(s), comma-separated, e.g. https://your-app.vercel.app
+      SCANNER_ALLOWED_ORIGINS: ${SCANNER_ALLOWED_ORIGINS:-http://localhost:3000}
+      SCANNER_PORT: "8787"
+      SCANNER_USE_GITLEAKS: "1"
+      SCANNER_VERIFY_SECRETS: "1"
+    # Chromium is RAM-hungry; give it room and recycle if it leaks.
+    mem_limit: 1800m
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8787/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

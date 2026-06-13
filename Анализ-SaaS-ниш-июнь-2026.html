@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>10 SaaS-возможностей для соло-фаундера · Начало июня 2026</title>
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#ffffff; --ink:#1f2937; --muted:#6b7280; --line:#e5e7eb;
+    --accent:#2563eb; --violet:#7c3aed;
+    --green-b:#065f46; --green-bg:#d1fae5;
+    --amber-b:#92400e; --amber-bg:#fef3c7;
+    --gray-b:#374151; --gray-bg:#e5e7eb;
+    --red-b:#991b1b; --red-bg:#fee2e2;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif;
+    line-height:1.55; font-size:16px;
+  }
+  .wrap{max-width:1080px; margin:0 auto; padding:0 20px 80px}
+  header.hero{
+    background:linear-gradient(135deg,#1e3a8a 0%,#3730a3 55%,#6d28d9 100%);
+    color:#fff; padding:48px 20px 40px; margin-bottom:8px;
+  }
+  .hero-inner{max-width:1080px; margin:0 auto}
+  .hero .kicker{font-size:13px; letter-spacing:.12em; text-transform:uppercase; opacity:.8; margin:0 0 10px}
+  .hero h1{font-size:30px; line-height:1.2; margin:0 0 12px; font-weight:800}
+  .hero p{margin:0; max-width:760px; opacity:.92; font-size:15px}
+  .hero .date-pill{
+    display:inline-block; margin-top:18px; background:rgba(255,255,255,.15);
+    border:1px solid rgba(255,255,255,.3); padding:6px 14px; border-radius:999px; font-size:13px; font-weight:600;
+  }
+  h2{font-size:22px; margin:46px 0 14px; font-weight:800; letter-spacing:-.01em}
+  h2 .num{color:var(--accent)}
+  .note{
+    background:#eef2ff; border:1px solid #c7d2fe; border-radius:12px;
+    padding:14px 18px; font-size:14px; color:#3730a3; margin:18px 0;
+  }
+  .note b{color:#312e81}
+
+  /* changes grid */
+  .changes{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:12px; margin:16px 0}
+  .chg{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; font-size:14px}
+  .chg .tag{font-weight:700; font-size:13px; display:block; margin-bottom:4px}
+  .up{color:#047857} .down{color:#b91c1c} .flat{color:#1d4ed8}
+
+  /* table */
+  .table-scroll{overflow-x:auto; border:1px solid var(--line); border-radius:14px; background:var(--card)}
+  table{border-collapse:collapse; width:100%; min-width:880px; font-size:13.5px}
+  thead th{
+    background:#111827; color:#f9fafb; text-align:left; padding:11px 12px; font-weight:600;
+    position:sticky; top:0; white-space:nowrap;
+  }
+  tbody td{padding:11px 12px; border-top:1px solid var(--line); vertical-align:top}
+  tbody tr:nth-child(even){background:#fafafa}
+  tbody tr:hover{background:#f0f7ff}
+  td.rank{font-weight:800; font-size:15px; color:var(--muted); text-align:center}
+  td.idea a{color:var(--accent); font-weight:700; text-decoration:none}
+  td.idea a:hover{text-decoration:underline}
+  .sub{color:var(--muted); font-size:12px}
+  .score-cell{text-align:center; font-weight:700; color:#374151}
+  .sigma{display:inline-block; min-width:34px; text-align:center; padding:3px 8px; border-radius:8px; font-weight:800; font-size:14px}
+  .s-hi{background:var(--green-bg); color:var(--green-b)}
+  .s-mid{background:var(--amber-bg); color:var(--amber-b)}
+  .s-lo{background:var(--gray-bg); color:var(--gray-b)}
+  .legend{font-size:12.5px; color:var(--muted); margin:10px 2px 0}
+  .legend span{display:inline-block; margin-right:14px}
+
+  /* cards */
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:16px;
+    padding:22px 24px; margin:18px 0; box-shadow:0 1px 2px rgba(16,24,40,.04);
+  }
+  .card.top{border:2px solid #c4b5fd; box-shadow:0 6px 24px rgba(124,58,237,.10)}
+  .card-head{display:flex; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:6px}
+  .card-rank{
+    flex:0 0 auto; width:40px; height:40px; border-radius:10px; background:#111827; color:#fff;
+    display:flex; align-items:center; justify-content:center; font-weight:800; font-size:18px;
+  }
+  .card.top .card-rank{background:linear-gradient(135deg,#7c3aed,#4f46e5)}
+  .card-title{flex:1 1 280px}
+  .card-title h3{margin:0; font-size:18px; font-weight:800; line-height:1.3}
+  .card-badges{display:flex; gap:8px; flex-wrap:wrap; margin-top:8px}
+  .pill{font-size:12px; font-weight:700; padding:4px 10px; border-radius:999px}
+  .pill-acv{background:#ecfdf5; color:#047857; border:1px solid #a7f3d0}
+  .pill-sig{background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe}
+  .pill-seg{background:#f5f3ff; color:#6d28d9; border:1px solid #ddd6fe}
+  dl{margin:14px 0 0; display:grid; grid-template-columns:160px 1fr; gap:8px 16px}
+  dl dt{font-weight:700; font-size:13px; color:#111827; padding-top:1px}
+  dl dd{margin:0; font-size:14.5px}
+  dl dd b{color:#0f172a}
+  .whynow{background:#fff7ed; border-left:3px solid #f59e0b; padding:8px 12px; border-radius:0 8px 8px 0}
+  .update{
+    margin-top:14px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px;
+    padding:10px 14px; font-size:13.5px; color:#166534;
+  }
+  .update.warn{background:#fef2f2; border-color:#fecaca; color:#991b1b}
+  .update b{font-weight:800}
+
+  /* top3 */
+  .top3{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; margin-top:14px}
+  .medal{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px 20px}
+  .medal h4{margin:0 0 6px; font-size:17px}
+  .medal .m{font-size:26px}
+  .medal p{margin:6px 0 0; font-size:14px; color:#374151}
+
+  /* sources */
+  .sources{font-size:13px; color:var(--muted); columns:2; column-gap:32px}
+  .sources a{color:var(--accent); text-decoration:none}
+  .sources a:hover{text-decoration:underline}
+  @media(max-width:620px){
+    dl{grid-template-columns:1fr} dl dt{padding-top:8px}
+    .sources{columns:1} .hero h1{font-size:24px}
+  }
+  footer{margin-top:48px; padding-top:20px; border-top:1px solid var(--line); font-size:12.5px; color:var(--muted)}
+  .disc{background:#fafafa; border:1px solid var(--line); border-radius:12px; padding:14px 18px; font-size:13px; color:#4b5563; margin-top:18px}
+  @media print{
+    header.hero{background:#1e3a8a !important; -webkit-print-color-adjust:exact; print-color-adjust:exact}
+    .card,.medal,.chg{break-inside:avoid} body{font-size:12px}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <p class="kicker">Венчурный ресёрч · окна возможностей для соло-фаундера</p>
+    <h1>10 сфер, где соло-разработчик может построить SaaS</h1>
+    <p>Острые, недавно возникшие боли с растущим спросом. Каждая идея проходит все жёсткие критерии: обострилась за 6–18 мес · глобальный растущий рынок · MVP за 4–8 недель одному · платящий B2B/профи-покупатель · путь к $100k+ ARR за ~2 года.</p>
+    <span class="date-pill">📅 Срез на начало июня 2026 · обновлено по live-данным</span>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="note">
+    <b>Как читать.</b> Ранжирование = <b>размер рынка × скорость роста × лёгкость постройки соло × срочность боли</b>.
+    Подоценки M/G/S/U (1–5), Σ — сумма (макс 20). Цифры рынка — это либо проверяемые факты (даты законов, запуски),
+    либо помеченные оценки рыночных отчётов и арифметика «снизу вверх» (цена × клиенты). Конкуренты реальные.
+    Источники — в конце документа.
+  </div>
+
+  <!-- WHAT CHANGED -->
+  <h2>🔁 Что изменилось с января по июнь 2026 (почему срез важен)</h2>
+  <div class="changes">
+    <div class="chg"><span class="tag down">🔻 AI Act: high-risk отложен</span>«AI Omnibus» (7 мая 2026) перенёс обязательства для high-risk-систем (Annex III) на <b>2 дек 2027</b>. Но обязательства <b>прозрачности</b> (ст. 50) живы: чат-боты — авг 2026, маркировка ИИ-контента — дек 2026. Фокус идеи сместился.</div>
+    <div class="chg"><span class="tag up">🔺 Vibe-code security: тихая боль → кризис</span>Май 2026: RedAccess нашёл ~<b>380 000</b> публичных vibe-приложений, ~5 000 с утечкой данных; у Lovable BOLA-дыра висела 48 дней. Тема вышла в Axios/VentureBeat.</div>
+    <div class="chg"><span class="tag up">🔺 Найм: ИИ-читинг удвоился</span>CodeSignal (фев 2026): читинг на тех-оценках вырос с <b>16% до 35%</b> за год. Google/McKinsey возвращают офлайн-интервью.</div>
+    <div class="chg"><span class="tag up">🔺 Email: Gmail перешёл к bounce</span>С ноября 2025 Gmail <b>отбивает</b> (не просто фильтрует) несоответствующие письма; планка спама де-факто &lt;0.10%.</div>
+    <div class="chg"><span class="tag up">🔺 EAA: энфорсмент стал реальным</span>~1 год действия: иски во Франции (Auchan, Carrefour, E.Leclerc), warning-письма в Германии. Вопрос сместился с «оштрафуют ли» на «насколько».</div>
+    <div class="chg"><span class="tag down">🔻 AI-FinOps: окно для соло сузилось</span>Категорию заняли Amnic, Vantage, Finout, FinOps LLM (chargeback, мульти-провайдер). Горизонтально соло уже поздно — только вертикаль.</div>
+  </div>
+
+  <!-- SUMMARY TABLE -->
+  <h2>📊 Сводная таблица <span class="num">(ранжировано по привлекательности)</span></h2>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Идея</th><th>Why-now триггер</th><th>Покупатель</th><th>ACV/мес</th>
+          <th title="Рынок">M</th><th title="Рост">G</th><th title="Соло-лёгкость">S</th><th title="Срочность">U</th><th>Σ</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="rank">1</td><td class="idea"><a href="#i1">GEO/AEO-трекинг</a><div class="sub">видимость бренда в ответах ИИ</div></td><td>AI Overviews + ChatGPT Search убивают клик из Google; ~15 млрд ИИ-запросов/мес</td><td>Маркетологи, агентства</td><td>$99–399</td><td class="score-cell">5</td><td class="score-cell">5</td><td class="score-cell">4</td><td class="score-cell">4</td><td class="score-cell"><span class="sigma s-hi">18</span></td></tr>
+        <tr><td class="rank">2</td><td class="idea"><a href="#i2">EAA-комплаенс</a><div class="sub">скан доступности + заявление</div></td><td>EAA действует с 28.06.2025; пошли иски и штраф-письма</td><td>E-comm/SaaS/агентства в ЕС</td><td>$49–249</td><td class="score-cell">4</td><td class="score-cell">5</td><td class="score-cell">4</td><td class="score-cell">5</td><td class="score-cell"><span class="sigma s-hi">18</span></td></tr>
+        <tr><td class="rank">3</td><td class="idea"><a href="#i3">Vibe-code Security</a><div class="sub">аудит no-code приложений</div></td><td>Бум vibe-coding + волна утечек (Lovable, 380k открытых приложений)</td><td>Indie-билдеры, no-code студии</td><td>$29–149</td><td class="score-cell">3</td><td class="score-cell">5</td><td class="score-cell">4</td><td class="score-cell">4</td><td class="score-cell"><span class="sigma s-hi">16</span></td></tr>
+        <tr><td class="rank">4</td><td class="idea"><a href="#i4">Deliverability-монитор</a><div class="sub">после правил Gmail/Yahoo</div></td><td>Gmail с ноя 2025 отбивает несоответствующие письма; потоп ИИ-спама</td><td>Sales, lead-gen, ньюслеттеры</td><td>$49–199</td><td class="score-cell">5</td><td class="score-cell">3</td><td class="score-cell">3</td><td class="score-cell">4</td><td class="score-cell"><span class="sigma s-mid">15</span></td></tr>
+        <tr><td class="rank">5</td><td class="idea"><a href="#i5">Integrity-найм</a><div class="sub">детект ИИ-читинга на интервью</div></td><td>Читинг удвоился (16%→35%); Cluely под слоем screen-share</td><td>Рекрутеры, eng-найм</td><td>$99–399</td><td class="score-cell">3</td><td class="score-cell">5</td><td class="score-cell">2</td><td class="score-cell">5</td><td class="score-cell"><span class="sigma s-mid">15</span></td></tr>
+        <tr><td class="rank">6</td><td class="idea"><a href="#i6">AI-support QA</a><div class="sub">контроль качества ботов</div></td><td>Все внедрили ИИ-поддержку — теперь боятся за качество/галлюцинации</td><td>CX-руководители</td><td>$99–399</td><td class="score-cell">4</td><td class="score-cell">4</td><td class="score-cell">3</td><td class="score-cell">3</td><td class="score-cell"><span class="sigma s-mid">14</span></td></tr>
+        <tr><td class="rank">7</td><td class="idea"><a href="#i7">DSAR-автоматизация</a><div class="sub">запросы на доступ/удаление</div></td><td>2026: 20 штатов с privacy-законами; IN/KY/RI с 1 янв</td><td>Privacy/legal-ops, mid-market</td><td>$99–399</td><td class="score-cell">4</td><td class="score-cell">3</td><td class="score-cell">3</td><td class="score-cell">4</td><td class="score-cell"><span class="sigma s-mid">14</span></td></tr>
+        <tr><td class="rank">8</td><td class="idea"><a href="#i8">AI-прозрачность</a><div class="sub">комплаенс ст. 50 AI Act</div></td><td>High-risk отложен до 2027, но раскрытие ботов (авг) и маркировка ИИ-контента (дек) живы</td><td>Compliance/продукт/маркетинг</td><td>$99–399</td><td class="score-cell">4</td><td class="score-cell">3</td><td class="score-cell">3</td><td class="score-cell">4</td><td class="score-cell"><span class="sigma s-mid">14</span></td></tr>
+        <tr><td class="rank">9</td><td class="idea"><a href="#i9">AI-shopping фид</a><div class="sub">видимость каталога для ИИ</div></td><td>Рост agentic-commerce (ChatGPT Shopping, Perplexity)</td><td>Shopify-мерчанты</td><td>$49–199</td><td class="score-cell">3</td><td class="score-cell">4</td><td class="score-cell">3</td><td class="score-cell">3</td><td class="score-cell"><span class="sigma s-lo">13</span></td></tr>
+        <tr><td class="rank">10</td><td class="idea"><a href="#i10">AI-FinOps</a><div class="sub">учёт расхода токенов</div></td><td>Счета за LLM взорвались; но категория уже заполняется</td><td>Eng-лиды, финансы</td><td>$99–499</td><td class="score-cell">4</td><td class="score-cell">3</td><td class="score-cell">2</td><td class="score-cell">3</td><td class="score-cell"><span class="sigma s-lo">12</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="legend">
+    <span><b>M</b> рынок</span><span><b>G</b> рост</span><span><b>S</b> соло-лёгкость</span><span><b>U</b> срочность</span>
+    <span><span class="sigma s-hi">16+</span> сильно</span><span><span class="sigma s-mid">14–15</span> хорошо</span><span><span class="sigma s-lo">≤13</span> нишево</span>
+  </div>
+
+  <!-- CARDS -->
+  <h2>🗂 Карточки идей</h2>
+
+  <!-- 1 -->
+  <article class="card top" id="i1">
+    <div class="card-head">
+      <div class="card-rank">1</div>
+      <div class="card-title">
+        <h3>GEO/AEO — видимость бренда в ответах ChatGPT, Perplexity, AI Overviews</h3>
+        <div class="card-badges"><span class="pill pill-acv">$99–399/мес</span><span class="pill pill-sig">Σ 18</span><span class="pill pill-seg">Маркетинг</span></div>
+      </div>
+    </div>
+    <dl>
+      <dt>Боль</dt><dd>Бренд не знает, упоминают ли его ИИ-движки и что они говорят — и теряет трафик «нулевого клика».</dd>
+      <dt>Why now</dt><dd class="whynow">AI Overviews (с мая 2024) и ChatGPT Search обнулили клики из Google. К началу 2026 ИИ-движки обрабатывают, по оценкам, <b>15+ млрд запросов/мес</b>. Весь SEO-бюджет ищет новую метрику — «цитируют ли нас ИИ».</dd>
+      <dt>Покупатель</dt><dd>In-house маркетологи и SEO/контент-агентства (лучший сегмент — перепродают клиентам). <b>$99–399</b>; агентствам $299–999.</dd>
+      <dt>Рынок и рост</dt><dd>По рыночным отчётам GEO ~<b>$1.0 млрд (2025) → ~$1.5 млрд (2026)</b>, CAGR ~45–50%. Свежие раунды (Evertune $19M и др.) подтверждают категорию.</dd>
+      <dt>Конкуренты + щель</dt><dd>Profound, Evertune, AthenaHQ, Scrunch, Otterly, Peec. <b>Слабое место:</b> дорогие/энтерпрайз, общий охват. <b>Незанятое:</b> дешёвый self-serve для SMB/агентств + узкая вертикаль (B2B-SaaS, локальный бизнес) с бенчмарками против конкурентов клиента.</dd>
+      <dt>MVP 4–8 нед</dt><dd>Бренд + 30–50 промптов → крон гоняет через API ChatGPT/Perplexity/Gemini + парсит AI Overviews → доля упоминаний, тон, цитируемые источники, динамика, сравнение с 2–3 конкурентами. Недельный e-mail-отчёт.</dd>
+      <dt>До $100k/год</dt><dd><b>$149 × 56 = $100k ARR.</b> Путь: м6 → 15, м12 → 35, м24 → 70+ (часть на агентском $399) ≈ $143k.</dd>
+      <dt>Риск + тест</dt><dd>Скатывание в «ещё один дашборд», низкий retention. <b>Тест за неделю:</b> вручную собрать GEO-отчёт для 10 брендов, разослать холодным маркетологам; ≥3 спросят «как получать регулярно» и назовут цену — go.</dd>
+    </dl>
+    <div class="update"><b>🔄 Июнь 2026:</b> рынок и раунды подтвердились, GEO стал отдельной категорией — но конкурентов прибавилось (12+ агентств, 15+ платформ). Выживает <b>вертикаль/ниша</b>, не «GEO для всех».</div>
+  </article>
+
+  <!-- 2 -->
+  <article class="card top" id="i2">
+    <div class="card-head">
+      <div class="card-rank">2</div>
+      <div class="card-title">
+        <h3>EAA-комплаенс — скан доступности сайта + генерация заявления</h3>
+        <div class="card-badges"><span class="pill pill-acv">$49–249/мес</span><span class="pill pill-sig">Σ 18</span><span class="pill pill-seg">Комплаенс / E-comm</span></div>
+      </div>
+    </div>
+    <dl>
+      <dt>Боль</dt><dd>Продавцам в ЕС нужно сделать сайт/приложение доступным (WCAG / EN 301 549) и доказать это — но они не знают, что сломано.</dd>
+      <dt>Why now</dt><dd class="whynow">European Accessibility Act действует с <b>28 июня 2025</b>. К июню 2026 — ~год энфорсмента: штрафов пока нет, НО во Франции поданы судебные иски (Auchan, Carrefour, E.Leclerc, Picard), в Германии летят warning-письма. Потолки штрафов до <b>€1 млн</b> (Испания), Венгрия — 5% оборота. Вопрос сместился с «оштрафуют ли» на «насколько».</dd>
+      <dt>Покупатель</dt><dd>SMB e-commerce/SaaS в ЕС и веб-агентства (закрывают портфели клиентских сайтов). <b>$49–249</b>; агентствам — пакет на портфель.</dd>
+      <dt>Рынок и рост</dt><dd>Web-accessibility — устойчиво растущая категория; EAA дал скачок спроса в ЕС (рост запросов «EAA compliance», «accessibility statement»).</dd>
+      <dt>Конкуренты + щель</dt><dd>accessiBe, UserWay (overlay — критикуют и <b>засуживают</b>), AudioEye, Deque/axe (энтерпрайз). <b>Незанятое:</b> честный SMB-инструмент — непрерывный мониторинг (не overlay) + автогенерация заявления + понятные тикеты разработчику. Готовый нарратив «анти-overlay».</dd>
+      <dt>MVP 4–8 нед</dt><dd>Playwright + <b>axe-core</b> (open-source) сканит сайт, ранжирует нарушения по риску, даёт скриншот + фикс, ловит регрессии при ре-сканах, генерирует юридическое заявление под EAA. Open-source движок снимает ~80% сложности.</dd>
+      <dt>До $100k/год</dt><dd><b>$99 × 84 = $100k ARR.</b> Агентство на $249 за 10 сайтов ≈ 5 SMB. 30 агентств × $249 ≈ $90k + хвост SMB.</dd>
+      <dt>Риск + тест</dt><dd>Рынок верит, что «overlay-виджет за $49 = комплаенс». <b>Тест:</b> просканировать 15 сайтов агентств, показать нарушения + черновик заявления, слушать силу возражения «нам хватит виджета».</dd>
+    </dl>
+    <div class="update"><b>🔄 Июнь 2026:</b> энфорсмент перешёл из теории в практику — иски во Франции, штраф-письма в Германии. Дедлайн-окно сейчас «горит» сильнее, чем полгода назад.</div>
+  </article>
+
+  <!-- 3 -->
+  <article class="card top" id="i3">
+    <div class="card-head">
+      <div class="card-rank">3</div>
+      <div class="card-title">
+        <h3>Vibe-code Security — аудит приложений с Lovable / Bolt / Replit / Base44</h3>
+        <div class="card-badges"><span class="pill pill-acv">$29–149/мес</span><span class="pill pill-sig">Σ 16</span><span class="pill pill-seg">DevTools / Security</span></div>
+      </div>
+    </div>
+    <dl>
+      <dt>Боль</dt><dd>Не-разработчики массово шипят приложения через ИИ-платформы и не подозревают про утёкшие API-ключи, открытые БД и дыры в правах доступа.</dd>
+      <dt>Why now</dt><dd class="whynow">К маю 2026 — череда громких утечек. RedAccess нашёл ~<b>380 000</b> публично доступных vibe-приложений, ~5 000 с чувствительными данными, ~<b>40% утекают ключи/креды</b>; у Lovable BOLA-уязвимость висела 48 дней. По оценкам, 40–62% ИИ-кода содержит уязвимости; 63% vibe-пользователей — без бэкграунда в коде.</dd>
+      <dt>Покупатель</dt><dd>Indie-фаундеры на vibe-стеке, no-code агентства и студии. <b>$29–149</b>.</dd>
+      <dt>Рынок и рост</dt><dd>Сейчас мал, но растёт с самой быстрой когортой создателей софта (по оценкам, к концу 2026 до 60% нового кода — ИИ).</dd>
+      <dt>Конкуренты + щель</dt><dd>Snyk, Socket, Semgrep, GitGuardian — для профи-девов и CI/CD. <b>Незанятое:</b> инструмент для <b>не-технаря</b> — подключил проект → нашёл секреты/открытые БД/отсутствие auth → объяснил починку простым языком «вставь сюда». Дистрибуция прямо в сообществах платформ.</dd>
+      <dt>MVP 4–8 нед</dt><dd>Сканер: секреты (паттерны + энтропия), публичная доступность бэкендов (Supabase/Firebase open rules), отсутствие аутентификации, базовый OWASP. Отчёт «красный/жёлтый/зелёный» + человеческое объяснение.</dd>
+      <dt>До $100k/год</dt><dd><b>$49 × 170 = $100k ARR.</b> Бесплатный разовый скан как лид-магнит → подписка на мониторинг. м24 → 200+ при $45.</dd>
+      <dt>Риск + тест</dt><dd>Платят только после взлома. <b>Тест:</b> выложить бесплатный сканер в 2–3 комьюнити vibe-coders, измерить долю «о боже, почини» и готовность платить превентивно. Если только после инцидента — разворот в «реагирование».</dd>
+    </dl>
+    <div class="update warn"><b>🔄 Июнь 2026 (повышено):</b> из тихой боли стала ГРОМКИМ кризисом — публикации в Axios/VentureBeat/TNW. Окно шире, но рынок начал реагировать — заходить надо быстро.</div>
+  </article>
+
+  <!-- 4 -->
+  <article class="card" id="i4">
+    <div class="card-head">
+      <div class="card-rank">4</div>
+      <div class="card-title">
+        <h3>Deliverability-монитор после правил Gmail / Yahoo</h3>
+        <div class="card-badges"><span class="pill pill-acv">$49–199/мес</span><span class="pill pill-sig">Σ 15</span><span class="pill pill-seg">Sales / Martech</span></div>
+      </div>
+    </div>
+    <dl>
+      <dt>Боль</dt><dd>Письма валятся в спам или отбиваются, а отправитель не понимает, нарушает ли он новые требования провайдеров.</dd>
+      <dt>Why now</dt><dd class="whynow">Правила для bulk-сендеров (с фев 2024: DMARC/SPF/DKIM, one-click unsubscribe, спам &lt;0.3%) ужесточились: с <b>ноября 2025 Gmail активно отбивает (bounce)</b> несоответствующие письма, планка спама де-факто &lt;0.10%. Cold-кампании ловят 0.5–1% жалоб.</dd>
+      <dt>Покупатель</dt><dd>Sales/SDR-команды, lead-gen агентства, операторы ньюслеттеров, indie-SaaS. <b>$49–199</b>.</dd>
+      <dt>Рынок и рост</dt><dd>Email-маркетинг-софт — крупная зрелая категория; deliverability — болевой под-сегмент с новым скачком спроса.</dd>
+      <dt>Конкуренты + щель</dt><dd>MailReach, Warmup Inbox, GlockApps, MXToolbox, Google Postmaster. <b>Слабое место:</b> либо только «прогрев» (всё чаще серая схема), либо сырые данные без интерпретации. <b>Незанятое:</b> health-монитор соответствия правилам на человеческом языке (DMARC + спам-рейт + placement + репутация в одном).</dd>
+      <dt>MVP 4–8 нед</dt><dd>Подключил домен → парсинг DMARC-репортов, Google Postmaster, seed-тесты placement, blacklists, authentication. Светофор + чек-лист починки + алерты при деградации.</dd>
+      <dt>До $100k/год</dt><dd><b>$79 × 106 = $100k ARR.</b> Агентствам мульти-домен $199. м24 → 120.</dd>
+      <dt>Риск + тест</dt><dd>Шумный рынок, демпинг прогревщиков. <b>Тест:</b> бесплатный «аудит одного домена» в 3–4 комьюнити, измерить спрос на постоянный мониторинг и уникальность интерпретации vs бесплатный MXToolbox.</dd>
+    </dl>
+    <div class="update"><b>🔄 Июнь 2026:</b> Gmail перешёл от фильтрации к bounce (ноя 2025) — круг пострадавших расширился, боль острее.</div>
+  </article>
+
+  <!-- 5 -->
+  <article class="card" id="i5">
+    <div class="card-head">
+      <div class="card-rank">5</div>
+      <div class="card-title">
+        <h3>Integrity-найм — детект live-ИИ-читинга на тех-интервью</h3>
+        <div class="card-badges"><span class="pill pill-acv">$99–399/мес</span><span class="pill pill-sig">Σ 15</span><span class="pill pill-seg">HR Tech</span></div>
+      </div>
+    </div>
+    <dl>
+      <dt>Боль</dt><dd>Кандидаты скрытно используют ИИ в реальном времени на удалённых интервью; встречаются фейковые/подменённые кандидаты.</dd>
+      <dt>Why now</dt><dd class="whynow">Читинг удвоился: CodeSignal (фев 2026) — с <b>16% до 35%</b> за год; Fabric — <b>38.5%</b> из 19 368 интервью с подозрением на ИИ. Cluely/Interview Coder работают на графическом слое <b>ниже</b> screen-share. Google и McKinsey возвращают офлайн-интервью.</dd>
+      <dt>Покупатель</dt><dd>Рекрутеры/eng-hiring-менеджеры, кадровые агентства. <b>$99–399</b> или за-интервью.</dd>
+      <dt>Рынок и рост</dt><dd>Assessment-софт — крупная категория; «interview integrity» — острый новый запрос.</dd>
+      <dt>Конкуренты + щель</dt><dd>Proctorio/Honorlock (edu), HackerRank/CodeSignal (частичный анти-чит), новые Zero Assist, Sherlock, Truffle, Kira. <b>Незанятое:</b> поведенческие сигналы (постоянная задержка 3–5с независимо от сложности вопроса) + integrity-friendly формат заданий, обесценивающий читинг.</dd>
+      <dt>MVP 4–8 нед</dt><dd>Среда take-home/лайв с поведенческими сигналами (паттерн вставок, тайминг ответов, переключения окна) + верификация личности + риск-скор + запись для ревью. Продавать как «<b>сигналы</b>», не «детектор лжи».</dd>
+      <dt>До $100k/год</dt><dd><b>$199 × 42 = $100k ARR.</b> м24 → 50; подходит модель за-объём-найма.</dd>
+      <dt>Риск + тест</dt><dd>Детект обходится, ложные срабатывания, юр-этика обвинений. <b>Тест:</b> 10 интервью с тех-рекрутерами — доверятся ли скору. Если боятся ложных обвинений — смещаться в формат заданий, где читинг бессмыслен.</dd>
+    </dl>
+    <div class="update warn"><b>🔄 Июнь 2026:</b> боль стала массовой (читинг ×2), но конкуренты появляются быстро (несколько запусков на Product Hunt). Окно закрывается — заходить вертикально и быстро.</div>
+  </article>
+
+  <!-- 6 -->
+  <article class="card" id="i6">
+    <div class="card-head">
+      <div class="card-rank">6</div>
+      <div class="card-title">
+        <h3>AI-support QA — контроль качества и галлюцинаций ботов поддержки</h3>
+        <div class="card-badges"><span class="pill pill-acv">$99–399/мес</span><span class="pill pill-sig">Σ 14</span><span class="pill pill-seg">CX</span></div>
+      </div>
+    </div>
+    <dl>
+      <dt>Боль</dt><dd>Компании внедрили ИИ в поддержку, но не знают, врёт ли он клиентам и роняет ли CSAT.</dd>
+      <dt>Why now</dt><dd class="whynow">2024–2025 — массовое развёртывание ИИ-ассистентов поддержки. После пары публичных провалов (бот пообещал лишнего → компанию обязали исполнить) CX-руководители хотят независимый контроль качества.</dd>
+      <dt>Покупатель</dt><dd>CX/support-руководители в SaaS и e-commerce с ИИ-поддержкой. <b>$99–399</b>.</dd>
+      <dt>Рынок и рост</dt><dd>Customer-support-софт — огромная категория; «AI support eval/QA» — новый слой поверх неё.</dd>
+      <dt>Конкуренты + щель</dt><dd>Eval-платформы (Braintrust) для разработчиков; встроенная аналитика самих ботов (необъективна). <b>Незанятое:</b> независимый пост-фактум QA для <b>CX-менеджера</b> (не инженера) — флажит галлюцинации/нарушения политик/упущенную эскалацию поверх любого бота.</dd>
+      <dt>MVP 4–8 нед</dt><dd>Коннектор к транскриптам (Intercom/Zendesk/выгрузка) → LLM-судья по чек-листу (фактологичность vs база знаний, тон, политика, нужна ли была эскалация) → дашборд скоринга + «худшие» диалоги на ревью.</dd>
+      <dt>До $100k/год</dt><dd><b>$199 × 42 = $100k ARR.</b> м24 → 50; привязка к бренд-риску снижает churn.</dd>
+      <dt>Риск + тест</dt><dd>Вендоры ботов добавят сами; «судья на LLM» сам ошибается. <b>Тест:</b> прогнать скоринг на реальных транскриптах 5 компаний, сверить с их ручной оценкой; проверить точность судьи на размеченной выборке.</dd>
+    </dl>
+  </article>
+
+  <!-- 7 -->
+  <article class="card" id="i7">
+    <div class="card-head">
+      <div class="card-rank">7</div>
+      <div class="card-title">
+        <h3>DSAR-автоматизация — запросы на доступ / удаление персональных данных</h3>
+        <div class="card-badges"><span class="pill pill-acv">$99–399/мес</span><span class="pill pill-sig">Σ 14</span><span class="pill pill-seg">Privacy / Legal</span></div>
+      </div>
+    </div>
+    <dl>
+      <dt>Боль</dt><dd>Компании тонут в запросах субъектов данных (доступ/удаление), обрабатывают вручную и рискуют сорвать законные сроки.</dd>
+      <dt>Why now</dt><dd class="whynow">К 2026 — <b>20 штатов США</b> с комплексными privacy-законами. С 1 янв 2026 заработали Indiana, Kentucky, Rhode Island (45-дн. срок, обязательные апелляции); RI — низкий порог (35k потребителей) и <b>без права на исправление</b>. Connecticut/Arkansas/Utah — с 1 июля 2026.</dd>
+      <dt>Покупатель</dt><dd>Privacy/legal-ops в mid-market; агентства-DPO. <b>$99–399</b>.</dd>
+      <dt>Рынок и рост</dt><dd>Privacy-софт — большая растущая категория (рост OneTrust/DataGrail/Transcend, найма «privacy operations»).</dd>
+      <dt>Конкуренты + щель</dt><dd>OneTrust, Osano, Transcend, DataGrail — энтерпрайз, дорого/сложно внедрять. <b>Незанятое:</b> доступный self-serve для SMB/mid-market — форма приёма + верификация + workflow со сроками + шаблоны + неизменяемый аудит-лог.</dd>
+      <dt>MVP 4–8 нед</dt><dd>Портал приёма DSAR → верификация заявителя → тикет с таймером по юрисдикции → чек-лист систем → шаблоны ответа → аудит-лог. Интеграции к источникам данных — позже.</dd>
+      <dt>До $100k/год</dt><dd><b>$199 × 42 = $100k ARR.</b> Низкий churn (регуляторная привязка). м24 → 45.</dd>
+      <dt>Риск + тест</dt><dd>Длинный enterprise-цикл; хотят «полный OneTrust». <b>Тест:</b> 10 интервью с privacy-ops (50–500 чел.) — в Excel ли DSAR и «дорого/избыточно» ли OneTrust для них.</dd>
+    </dl>
+  </article>
+
+  <!-- 8 -->
+  <article class="card" id="i8">
+    <div class="card-head">
+      <div class="card-rank">8</div>
+      <div class="card-title">
+        <h3>AI-прозрачность — комплаенс обязательств ст. 50 EU AI Act</h3>
+        <div class="card-badges"><span class="pill pill-acv">$99–399/мес</span><span class="pill pill-sig">Σ 14</span><span class="pill pill-seg">Комплаенс / Legal</span></div>
+      </div>
+    </div>
+    <dl>
+      <dt>Боль</dt><dd>Внедренцам ИИ надо раскрывать, что пользователь общается с ботом, и маркировать ИИ-контент — по AI Act, но они не умеют это организовать и задокументировать.</dd>
+      <dt>Why now</dt><dd class="whynow"><b>Ключевой сдвиг:</b> «AI Omnibus» (7 мая 2026) отложил обязательства для high-risk (Annex III) до <b>2 дек 2027</b>. НО обязательства прозрачности (ст. 50) остаются живы: раскрытие чат-ботов — с <b>2 авг 2026</b>, маркировка ИИ-контента — с <b>2 дек 2026</b>. Узкий, реальный дедлайн.</dd>
+      <dt>Покупатель</dt><dd>Compliance/продукт/маркетинг в компаниях с чат-ботами и ИИ-генерацией. <b>$99–399</b>.</dd>
+      <dt>Рынок и рост</dt><dd>AI-governance — растущий под-сегмент GRC (Vanta/Drata добавляют AI-модули).</dd>
+      <dt>Конкуренты + щель</dt><dd>Credo AI, Holistic AI (энтерпрайз); Vanta/Drata (AI как доп-модуль). <b>Незанятое:</b> лёгкий self-serve под обязательства прозрачности — генератор дисклеймеров бота + маркировка/провенанс ИИ-контента (C2PA) + реестр и доказательная база.</dd>
+      <dt>MVP 4–8 нед</dt><dd>Чек-лист «подпадаете ли под ст. 50» → виджет/сниппет раскрытия чат-бота + инструмент маркировки ИИ-контента (метки / C2PA-манифесты) + лог соответствия и шаблоны политик.</dd>
+      <dt>До $100k/год</dt><dd><b>$149 × 56 = $100k ARR.</b> Дедлайны авг/дек 2026 — драйвер. м24 → 50.</dd>
+      <dt>Риск + тест</dt><dd>После переноса high-risk компании расслабились и путают, что отложено, а что нет. <b>Тест:</b> 10 интервью — знают ли, что прозрачность НЕ отложена. Продавать ясность по «живым» датам.</dd>
+    </dl>
+    <div class="update warn"><b>🔄 Июнь 2026 (переориентировано):</b> high-risk GRC-документация из январского списка <b>отложена до 2027</b>, поэтому фокус смещён на обязательства прозрачности, которые живы в 2026.</div>
+  </article>
+
+  <!-- 9 -->
+  <article class="card" id="i9">
+    <div class="card-head">
+      <div class="card-rank">9</div>
+      <div class="card-title">
+        <h3>AI-shopping фид — каталог, который видят торговые ИИ-агенты</h3>
+        <div class="card-badges"><span class="pill pill-acv">$49–199/мес</span><span class="pill pill-sig">Σ 13</span><span class="pill pill-seg">E-commerce</span></div>
+      </div>
+    </div>
+    <dl>
+      <dt>Боль</dt><dd>Товары мерчанта не находятся и не цитируются торговыми ИИ-агентами (ChatGPT Shopping, Perplexity, AI-выдача), т.к. данные не структурированы под них.</dd>
+      <dt>Why now</dt><dd class="whynow">2025–2026 — старт agentic-commerce: ИИ рекомендуют и оформляют покупки. Правила видимости отличаются от классического Google Shopping (важны структурированные данные, факты, отзывы, которые ИИ может процитировать).</dd>
+      <dt>Покупатель</dt><dd>Shopify/e-commerce мерчанты среднего размера, фид-агентства. <b>$49–199</b>.</dd>
+      <dt>Рынок и рост</dt><dd>E-commerce-софт огромен; «AI commerce optimization» — зарождающийся под-сегмент.</dd>
+      <dt>Конкуренты + щель</dt><dd>DataFeedWatch, Feedonomics (эра Google/Meta-фидов). <b>Слабое место:</b> заточены под Google/Meta, не под LLM-цитируемость. <b>Незанятое:</b> «сделай каталог цитируемым для ИИ» — обогащение данными/Q&amp;A/фактами + мониторинг, рекомендуют ли тебя ИИ-агенты.</dd>
+      <dt>MVP 4–8 нед</dt><dd>Shopify-приложение: аудит «AI-готовности» листингов (структурированные данные, полнота атрибутов, FAQ), авто-предложения по обогащению + трекер цитирований по 20 покупательским запросам.</dd>
+      <dt>До $100k/год</dt><dd><b>$79 × 106 = $100k ARR</b> через Shopify App Store (встроенный канал — большой плюс соло). м24 → 130+.</dd>
+      <dt>Риск + тест</dt><dd>Рано — объём покупок через ИИ пока мал, ROI неочевиден. <b>Тест:</b> для 10 магазинов проверить цитируемость ИИ, показать разрыв с конкурентами, измерить готовность платить.</dd>
+    </dl>
+  </article>
+
+  <!-- 10 -->
+  <article class="card" id="i10">
+    <div class="card-head">
+      <div class="card-rank">10</div>
+      <div class="card-title">
+        <h3>AI-FinOps — учёт расхода токенов по командам / проектам / провайдерам</h3>
+        <div class="card-badges"><span class="pill pill-acv">$99–499/мес</span><span class="pill pill-sig">Σ 12</span><span class="pill pill-seg">DevTools / Finance</span></div>
+      </div>
+    </div>
+    <dl>
+      <dt>Боль</dt><dd>Расходы на LLM растут непредсказуемо; никто не видит, какая команда/фича/клиент сжигает токены.</dd>
+      <dt>Why now</dt><dd class="whynow">2024–2025 — LLM стали продакшн-статьёй расходов, агенты жгут токены пачками. НО к 2026 категория быстро заполнилась.</dd>
+      <dt>Покупатель</dt><dd>Eng-лиды/платформенные команды, финансы. <b>$99–499</b>.</dd>
+      <dt>Рынок и рост</dt><dd>Растёт вместе с ИИ-бюджетами (самая быстрая статья IT-затрат).</dd>
+      <dt>Конкуренты + щель</dt><dd><b>Уже плотно:</b> Amnic, Vantage (ингест Anthropic Admin API), Finout, CloudZero, FinOps LLM (chargeback, anomaly-detection, semantic caching, мульти-провайдер). Щель осталась только в узких вертикалях.</dd>
+      <dt>MVP 4–8 нед</dt><dd>Лёгкий прокси/ингест → нормализация usage по провайдерам в единые «токены/$», теги по команде/клиенту/фиче, бюджеты-алерты, недельный отчёт «топ-сжигатели».</dd>
+      <dt>До $100k/год</dt><dd><b>$199 × 42 = $100k ARR</b> — но только при узком вертикальном позиционировании.</dd>
+      <dt>Риск + тест</dt><dd>Горизонтальное окно для соло сузилось. <b>Тест:</b> НЕ строить горизонтально; искать вертикаль (per-customer chargeback для ИИ-агентств/SaaS, биллящих конечных клиентов). 10 интервью в одной вертикали.</dd>
+    </dl>
+    <div class="update warn"><b>🔄 Июнь 2026 (понижено):</b> то, что в январе было щелью (мульти-провайдер + финанс-атрибуция), к июню заняли Amnic/Vantage/Finout/FinOps LLM. Для соло остаётся только узкая вертикаль.</div>
+  </article>
+
+  <!-- TOP 3 -->
+  <h2>🏆 Топ-3 на месте соло-фаундера (июнь 2026)</h2>
+  <p style="font-size:14.5px;color:#374151;margin:0 0 6px">
+    Критерий: <b>бюджет у покупателя × демонстрируемость ценности × низкая нагрузка на поддержку × липкость × могу построить ядро сам.</b>
+  </p>
+  <div class="top3">
+    <div class="medal">
+      <div class="m">🥇</div>
+      <h4>GEO/AEO-трекинг</h4>
+      <p>Самый быстрорастущий вектор с подтверждённым рынком (~$1.5 млрд, ~45%+). Маркетологи имеют бюджет, а ценность продаёт себя сама: «вот где конкурента советует ChatGPT, а тебя — нет». Технически — оркестрация API + дашборд за 4–6 недель. Брать узкую вертикаль, не «GEO для всех».</p>
+    </div>
+    <div class="medal">
+      <div class="m">🥈</div>
+      <h4>EAA-комплаенс</h4>
+      <p>Лучшая срочность: закон действует, иски и штраф-письма пошли, ROI измерим. Open-source axe-core снимает основную сложность — строишь мониторинг + заявление + тикеты. Канал — агентства (высокий ACV на клиента). Нарратив «анти-overlay» готов.</p>
+    </div>
+    <div class="medal">
+      <div class="m">🥉</div>
+      <h4>Vibe-code Security</h4>
+      <p>Сменил в топ-3 идею AI-FinOps. Причина: к июню 2026 это <b>громкий кризис</b> с конкретными данными (380k открытых приложений, утечки Lovable), а FinOps-нишу заняли крупные игроки. Аудитория растёт быстрее всех, MVP буровит open-source. Риск — платят после инцидента, но инциденты теперь частые.</p>
+    </div>
+  </div>
+  <div class="note" style="margin-top:16px">
+    <b>Что поменялось в топ-3 с января:</b> вместо <b>AI-FinOps</b> (горизонтальное окно для соло закрылось — пришли Amnic/Vantage/Finout) поднялся <b>Vibe-code Security</b> (из потенциальной боли стал реальным кризисом). GEO и EAA удержали лидерство. <b>Если строить завтра:</b> начать с GEO ради скорости валидации и демо-эффекта, держа EAA как параллельную дедлайн-возможность с готовым каналом через агентства.
+  </div>
+
+  <!-- SOURCES -->
+  <h2>🔗 Источники сигналов (live, июнь 2026)</h2>
+  <div class="sources">
+    <p>— EU AI Act / Omnibus: <a href="https://www.lw.com/en/insights/ai-act-update-eu-resolves-to-change-rules-and-extend-deadlines" target="_blank" rel="noopener">Latham &amp; Watkins</a>, <a href="https://www.gibsondunn.com/eu-ai-act-omnibus-agreement-postponed-high-risk-deadlines-and-other-key-changes/" target="_blank" rel="noopener">Gibson Dunn</a>, <a href="https://artificialintelligenceact.eu/implementation-timeline/" target="_blank" rel="noopener">artificialintelligenceact.eu</a></p>
+    <p>— EAA штрафы/энфорсмент: <a href="https://www.levelaccess.com/blog/penalties-for-eaa-non-compliance/" target="_blank" rel="noopener">Level Access</a>, <a href="https://web-accessibility-checker.com/en/blog/eaa-fines-by-country" target="_blank" rel="noopener">Web Accessibility Checker</a></p>
+    <p>— GEO рынок/раунды: <a href="https://www.intelmarketresearch.com/generative-engine-optimization-services-market-36546" target="_blank" rel="noopener">IntelMarket</a>, <a href="https://www.openpr.com/news/4438021/generative-engine-optimization-geo-market-is-expected" target="_blank" rel="noopener">OpenPR</a>, <a href="https://www.evertune.ai/resources/insights-on-ai/top-15-generative-engine-optimization-geo-platforms-for-2026" target="_blank" rel="noopener">Evertune</a></p>
+    <p>— Vibe-code security: <a href="https://www.axios.com/2026/05/07/loveable-replit-vibe-coding-privacy" target="_blank" rel="noopener">Axios</a>, <a href="https://venturebeat.com/security/vibe-coded-apps-shadow-ai-s3-bucket-crisis-ciso-audit-framework" target="_blank" rel="noopener">VentureBeat</a>, <a href="https://thenextweb.com/news/lovable-vibe-coding-security-crisis-exposed" target="_blank" rel="noopener">TNW</a></p>
+    <p>— Email deliverability: <a href="https://www.scaledmail.com/blogs/email-deliverability-news" target="_blank" rel="noopener">ScaledMail</a>, <a href="https://powerdmarc.com/google-and-yahoo-email-authentication-requirements/" target="_blank" rel="noopener">PowerDMARC</a></p>
+    <p>— Interview integrity: <a href="https://fabrichq.ai/blogs/state-of-ai-interview-cheating-in-2026-insights-from-19-368-interviews" target="_blank" rel="noopener">Fabric (19 368 интервью)</a>, <a href="https://www.withsherlock.ai/blog/rise-of-ai-interview-fraud" target="_blank" rel="noopener">Sherlock</a></p>
+    <p>— AI-FinOps: <a href="https://www.finout.io/blog/best-finops-tools-for-managing-ai-costs-in-2026" target="_blank" rel="noopener">Finout</a>, <a href="https://www.vantage.sh/blog/best-finops-tools-for-ai" target="_blank" rel="noopener">Vantage</a>, <a href="https://amnic.com/blogs/finops-tools-for-ai-cost-management" target="_blank" rel="noopener">Amnic</a></p>
+    <p>— US privacy / DSAR: <a href="https://www.multistate.us/insider/2026/2/4/all-of-the-comprehensive-privacy-laws-that-take-effect-in-2026" target="_blank" rel="noopener">MultiState</a>, <a href="https://iapp.org/resources/article/us-state-privacy-legislation-tracker" target="_blank" rel="noopener">IAPP</a>, <a href="https://www.datagrail.io/blog/data-privacy/the-2026-guide-to-dsar-automation/" target="_blank" rel="noopener">DataGrail</a></p>
+  </div>
+
+  <div class="disc">
+    <b>Дисклеймер.</b> Документ — аналитический синтез, а не инвестиционная рекомендация. Даты законов и факты запусков проверяемы по источникам выше; цифры рынка из коммерческих отчётов часто оптимистичны — перед запуском проверяйте «снизу вверх» (интервью + готовность платить). Арифметика до $100k — иллюстративная (цена × клиенты), не прогноз. Перед написанием кода прогоните недельный тест боли из каждой карточки.
+  </div>
+
+  <footer>
+    Подготовлено как венчурный ресёрч окон возможностей для соло-фаундера · срез на начало июня 2026 ·
+    ранжирование: рынок × рост × лёгкость соло × срочность.
+  </footer>
+
+</div>
+</body>
+</html>

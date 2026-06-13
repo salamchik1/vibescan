@@ -1,0 +1,71 @@
+@import url('https://fonts.googleapis.com/css2?family=Geologica:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-ink text-white antialiased;
+  background-image: radial-gradient(900px 500px at 50% -10%, rgba(243, 254, 0, 0.06), transparent);
+}
+
+/* PDF export (Download PDF -> the browser's "Save as PDF"). Force a light, ink-friendly
+   layout and reveal every collapsed fix/code block so the printed report is complete. */
+@media print {
+  :root {
+    color-scheme: light;
+  }
+  body {
+    background: #fff !important;
+    color: #111 !important;
+  }
+  /* Print only the report; drop the nav/footer chrome and any other page section. */
+  body * {
+    visibility: hidden;
+  }
+  #vibescan-report,
+  #vibescan-report * {
+    visibility: visible;
+  }
+  #vibescan-report {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    color: #111 !important;
+  }
+  #vibescan-report * {
+    color: #111 !important;
+    border-color: #d1d5db !important;
+    box-shadow: none !important;
+  }
+  /* White cards instead of translucent-on-dark. */
+  #vibescan-report .bg-white\/5,
+  #vibescan-report .bg-white\/10 {
+    background: #f8f9fa !important;
+  }
+  /* Reveal collapsed fix prompts and code examples. */
+  #vibescan-report details {
+    display: block !important;
+  }
+  #vibescan-report details > *:not(summary) {
+    display: revert !important;
+  }
+  #vibescan-report pre,
+  #vibescan-report code {
+    background: #f1f3f5 !important;
+    white-space: pre-wrap !important;
+    word-break: break-word;
+  }
+  #vibescan-report section,
+  #vibescan-report .rounded-2xl,
+  #vibescan-report .rounded-xl {
+    break-inside: avoid;
+  }
+}

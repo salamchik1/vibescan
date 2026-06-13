@@ -1,0 +1,33 @@
+# Build context is the repo root. Keep the image lean and never leak secrets.
+node_modules
+**/node_modules
+dist
+**/dist
+.next
+**/.next
+out
+*.tsbuildinfo
+
+# secrets / local env
+.env
+.env.local
+.env.*.local
+
+# git & tooling
+.git
+.gitignore
+
+# scanner runtime temp
+tmp
+.scan-cache
+test-results
+playwright-report
+*.log
+
+# stuff the scanner service doesn't need
+apps/web
+zeeframes-clone
+*.html
+*.md
+*.bat
+*.vbs
