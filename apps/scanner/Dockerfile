@@ -5,9 +5,16 @@ FROM mcr.microsoft.com/playwright:v1.49.0-jammy
 WORKDIR /app
 
 # Optional deep secret scanning. Comment out if you don't want gitleaks in the image.
+# Pick the gitleaks build matching the host architecture so the image works on
+# both x86 (amd64) and ARM hosts (e.g. Oracle Cloud Ampere A1 free tier).
 ARG GITLEAKS_VERSION=8.21.2
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
-  && curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+  && case "$(dpkg --print-architecture)" in \
+       amd64) GL_ARCH=x64 ;; \
+       arm64) GL_ARCH=arm64 ;; \
+       *) GL_ARCH=x64 ;; \
+     esac \
+  && curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_${GL_ARCH}.tar.gz" \
      | tar -xz -C /usr/local/bin gitleaks \
   && apt-get purge -y curl && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
 
