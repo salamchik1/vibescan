@@ -1,3 +1,13 @@
+---
+title: VibeScan Scanner
+emoji: 🛡️
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 8787
+pinned: false
+---
+
 # 🛡️ VibeScan
 
 Free security scanner for vibe-coded apps (Lovable / Bolt / Base44 / Supabase / Firebase).
