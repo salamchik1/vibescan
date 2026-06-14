@@ -1,4 +1,4 @@
-import type { VerificationStatus } from '@vibescan/findings';
+import type { Severity, VerificationStatus } from '@vibescan/findings';
 import { USER_AGENT } from '../config';
 
 /**
@@ -13,8 +13,9 @@ import { USER_AGENT } from '../config';
  * Hard safety rules every verifier here obeys:
  *  - Read-only only: GET, or a side-effect-free POST like Slack's auth.test. Never
  *    create, update, delete, or send anything.
- *  - The secret travels only to its own provider's official HTTPS host, in the
- *    Authorization header, over a connection that never follows redirects
+ *  - The secret travels only to its own provider's official HTTPS host (in the
+ *    Authorization header, or the URL query for key-in-URL providers like Google),
+ *    over a connection that never follows redirects
  *    (`redirect: 'error'`) — so a hijacked redirect can't leak it to a third party.
  *  - Short timeout, capped response read, and the raw key is never logged or returned;
  *    only a status and a secret-free, human-readable detail string leave this module.
@@ -39,6 +40,17 @@ export interface LivenessResult {
   endpoint: string;
   /** Secret-free explanation of what we learned. */
   detail?: string;
+  /**
+   * Override the finding's severity from the live result. Used by providers whose
+   * danger is decided by the probe rather than the pattern — e.g. a Google key is
+   * `high` only once we confirm it is unrestricted. Omit to leave severity untouched.
+   */
+  severity?: Severity;
+  /**
+   * Replace the default "✅ confirmed live" / "⚪ revoked" summary suffix with a
+   * provider-specific one (e.g. "⚠️ unrestricted" / "✅ restricted (safe)").
+   */
+  summarySuffix?: string;
 }
 
 const PROBE_TIMEOUT_MS = 6_000;
@@ -207,6 +219,52 @@ const VERIFIERS: Record<string, Verifier> = {
     const r = await probe('https://api.digitalocean.com/v2/account', { headers: { authorization: `Bearer ${secret}` } });
     if (!r) return unverified(ep);
     return byStatus(r, ep, 'DigitalOcean accepted this token — it can control your infrastructure.');
+  },
+
+  // Google "AIza…" keys are publishable by design (Maps/Firebase/Sign-In). The
+  // ONLY thing that makes one dangerous is the *absence* of restrictions, so the
+  // verdict here is inverted from the Bearer providers: a key that works against a
+  // billable API with nothing blocking us is the real leak; a key Google rejects
+  // because of referrer/IP/API restrictions is the safe, expected setup.
+  // The probe is a single read-only GET to the Geocoding API (key in the URL, as
+  // Google keys are not Bearer tokens). Geocoding requires billing, so a success
+  // proves the key can spend money from anywhere.
+  'Google API key': async (secret, probe) => {
+    const ep = 'GET maps.googleapis.com/maps/api/geocode/json';
+    const r = await probe(`https://maps.googleapis.com/maps/api/geocode/json?address=Google&key=${encodeURIComponent(secret)}`);
+    if (!r) return unverified(ep);
+    const body = parseJson(r.bodyText);
+    const apiStatus = typeof body?.status === 'string' ? body.status : '';
+    const msg = (typeof body?.error_message === 'string' ? body.error_message : '').toLowerCase();
+
+    // Accepted and ran against a billable API → unrestricted → exploitable.
+    if (apiStatus === 'OK' || apiStatus === 'ZERO_RESULTS') {
+      return {
+        status: 'active',
+        endpoint: ep,
+        severity: 'high',
+        summarySuffix: ' — ⚠️ unrestricted: works against billable Google APIs from any site',
+        detail:
+          'Google accepted this key with no referrer/IP/API restriction — anyone can copy it and run up your bill. Restrict it in Cloud Console (HTTP referrers + allowed APIs) or rotate it.',
+      };
+    }
+    if (apiStatus === 'REQUEST_DENIED') {
+      // The key itself is dead.
+      if (/invalid|expired/.test(msg)) return inactive(ep);
+      // Rejected because it carries restrictions → it can't be abused elsewhere → safe.
+      // (`inactive` so the report drops it; the detail explains it is restricted, not revoked.)
+      if (/refer|not authorized|ip,? site|ip address|restrict/.test(msg)) {
+        return {
+          status: 'inactive',
+          endpoint: ep,
+          summarySuffix: ' — ✅ restricted in Cloud Console (safe to expose)',
+          detail:
+            'Google rejected this key because it carries referrer/IP/API restrictions, so it cannot be abused from another site — the expected, safe setup for a browser key.',
+        };
+      }
+      return unverified(ep, 'Google denied the probe, but not because of key restrictions — could not confirm.');
+    }
+    return unverified(ep, apiStatus ? `Google answered status ${apiStatus}.` : `Google answered ${r.status}.`);
   },
 
   'Telegram bot token': async (secret, probe) => {

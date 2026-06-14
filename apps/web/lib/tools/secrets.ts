@@ -121,6 +121,21 @@ function mask(value: string, keepEnd = 4): string {
   return `${'*'.repeat(4)}${v.slice(v.length - keepEnd)}`;
 }
 
+// A Google "AIza…" key is publishable by design for browser SDKs (Firebase web
+// config, Maps JS, Sign-In). It is safe as long as it is restricted in Cloud
+// Console; only an unrestricted key is a real leak — which a regex can't see. So
+// when the key sits in one of those contexts we don't report it, and an
+// unidentified one is downgraded to low. (Mirrors the URL scanner's secret detector.)
+const GOOGLE_PUBLISHABLE_CONTEXT_RE =
+  /(firebase|firebaseapp\.com|firebaseio\.com|firebasedatabase\.app|authdomain|messagingsenderid|measurementid|storagebucket|initializeapp|maps\.googleapis\.com|google\.maps|maps\/api\/js|libraries=|apis\.google\.com|accounts\.google\.com\/gsi|gsi\/client)/i;
+const GOOGLE_CONTEXT_WINDOW = 240;
+
+function classifyGoogleKey(text: string, index: number): 'publishable' | 'unknown' {
+  const start = Math.max(0, index - GOOGLE_CONTEXT_WINDOW);
+  const end = Math.min(text.length, index + GOOGLE_CONTEXT_WINDOW);
+  return GOOGLE_PUBLISHABLE_CONTEXT_RE.test(text.slice(start, end)) ? 'publishable' : 'unknown';
+}
+
 /** Filters out common high-entropy strings that are not secrets. */
 function looksLikeNonSecret(raw: string): boolean {
   if (/^[0-9a-f]+$/i.test(raw) && [32, 40, 56, 64, 96, 128].includes(raw.length)) return true;
@@ -164,8 +179,15 @@ export function scanForSecrets(text: string): ScanResult {
       const raw = m[0];
       if (matchedRaws.includes(raw)) continue;
       matchedRaws.push(raw);
+      let severity = rule.severity;
+      // Google keys are publishable by design for browser SDKs (see classifyGoogleKey):
+      // suppress the clearly-publishable ones, downgrade the unidentified ones to low.
+      if (rule.provider === 'Google API key') {
+        if (classifyGoogleKey(text, m.index ?? 0) === 'publishable') continue;
+        severity = 'low';
+      }
       const masked = rule.provider === 'Private key' ? '(private key block)' : mask(raw);
-      add(rule.provider, rule.severity, masked, m.index ?? 0);
+      add(rule.provider, severity, masked, m.index ?? 0);
     }
   }
 

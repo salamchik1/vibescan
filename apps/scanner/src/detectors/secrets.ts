@@ -124,6 +124,24 @@ function hasSecretContext(text: string, index: number): boolean {
   return CONTEXT_KEYWORD_RE.test(text.slice(start, index));
 }
 
+// --- Google API key classification ------------------------------------------
+// A Google "AIza…" key is NOT automatically a leak. Google publishes these for
+// the browser (Firebase web config, Maps JavaScript API, Sign-In / GSI): they are
+// MEANT to ship to the client and are safe as long as the key is restricted
+// (HTTP referrers + allowed APIs) in Cloud Console. The only dangerous case is an
+// unrestricted key — which a regex cannot see. So when the key clearly sits in one
+// of these publishable contexts we treat it as expected and do not report it; an
+// unidentified one is surfaced only at `low` (we can't prove it's unrestricted).
+const GOOGLE_PUBLISHABLE_CONTEXT_RE =
+  /(firebase|firebaseapp\.com|firebaseio\.com|firebasedatabase\.app|authdomain|messagingsenderid|measurementid|storagebucket|initializeapp|maps\.googleapis\.com|google\.maps|maps\/api\/js|libraries=|apis\.google\.com|accounts\.google\.com\/gsi|gsi\/client)/i;
+const GOOGLE_CONTEXT_WINDOW = 240;
+
+function classifyGoogleKey(text: string, index: number): 'publishable' | 'unknown' {
+  const start = Math.max(0, index - GOOGLE_CONTEXT_WINDOW);
+  const end = Math.min(text.length, index + GOOGLE_CONTEXT_WINDOW);
+  return GOOGLE_PUBLISHABLE_CONTEXT_RE.test(text.slice(start, end)) ? 'publishable' : 'unknown';
+}
+
 export interface DetectSecretsOptions {
   /** When true, make a read-only liveness call per supported provider to confirm the key still works. */
   verify?: boolean;
@@ -141,6 +159,9 @@ export async function detectSecrets(
   const matchedRaws: string[] = [];
   // Findings whose provider we can confirm live, paired with the raw key (kept local, never serialized).
   const verifiable: Array<{ finding: Finding; provider: string; secret: string }> = [];
+  // Google keys get a deferred keep/drop decision (see the filter before return).
+  const googleFindings = new Set<Finding>();
+  const publishableGoogle = new Set<Finding>();
 
   // 1) Pattern-based provider rules.
   for (const rule of RULES) {
@@ -149,19 +170,40 @@ export async function detectSecrets(
       // Skip a raw value already claimed by an earlier, more specific rule.
       if (matchedRaws.includes(raw)) continue;
       matchedRaws.push(raw);
+
+      let severity = rule.severity;
+      let note = '';
+      // Google keys are publishable by design for browser SDKs (see classifyGoogleKey).
+      // We record them but defer the final keep/drop decision to the end: by context
+      // when verify is off, and by the live restriction probe when verify is on.
+      const isGoogleKey = rule.provider === 'Google API key';
+      let googlePublishable = false;
+      if (isGoogleKey) {
+        severity = 'low';
+        if (classifyGoogleKey(text, m.index ?? 0) === 'publishable') {
+          googlePublishable = true;
+        } else {
+          note = ' — only a risk if it has no API/referrer restrictions in Google Cloud Console';
+        }
+      }
+
       const masked = rule.provider.startsWith('Private key') ? '(private key block)' : maskSecret(raw);
       const key = dedupeKey(rule.provider, masked);
       if (seen.has(key)) continue;
       seen.add(key);
       const finding: Finding = {
         type: 'secret_exposed',
-        severity: rule.severity,
+        severity,
         category: 'secrets',
-        summary: `${rule.provider} (${masked})`,
+        summary: `${rule.provider} (${masked})${note}`,
         evidence: masked,
         params: { provider: rule.provider },
       };
       findings.push(finding);
+      if (isGoogleKey) {
+        googleFindings.add(finding);
+        if (googlePublishable) publishableGoogle.add(finding);
+      }
       if (isVerifiable(rule.provider)) verifiable.push({ finding, provider: rule.provider, secret: raw });
     }
   }
@@ -238,7 +280,18 @@ export async function detectSecrets(
     await runVerifications(verifiable, opts.probe);
   }
 
-  return findings;
+  // Decide which Google keys actually reach the report:
+  //  - verified unrestricted (status 'active')      → keep, now high (a real leak)
+  //  - verified restricted / revoked ('inactive')   → drop (safe)
+  //  - not verified                                 → drop publishable-context keys
+  //                                                    (safe by design), keep the rest at low
+  return findings.filter((f) => {
+    if (!googleFindings.has(f)) return true;
+    const status = f.verification?.status;
+    if (status === 'active') return true;
+    if (status === 'inactive') return false;
+    return !publishableGoogle.has(f);
+  });
 }
 
 const VERIFY_CONCURRENCY = 5;
@@ -266,6 +319,9 @@ async function runVerifications(
  *  - active   → mark it confirmed (keep the pattern severity; a live critical key stays critical).
  *  - inactive → the key is dead, so drop it to `low` to cut false-alarm noise from revoked keys.
  *  - unverified → annotate only; severity unchanged (we still assume it's live).
+ *
+ * A result may also carry a `severity` override (e.g. Google escalates to high once
+ * proven unrestricted) and a `summarySuffix` to replace the default annotation.
  */
 function applyVerification(finding: Finding, result: LivenessResult): void {
   finding.verification = {
@@ -274,10 +330,13 @@ function applyVerification(finding: Finding, result: LivenessResult): void {
     detail: result.detail,
     checkedAt: new Date().toISOString(),
   };
-  if (result.status === 'active') {
+  if (result.severity) finding.severity = result.severity;
+  if (result.summarySuffix !== undefined) {
+    finding.summary = `${finding.summary}${result.summarySuffix}`;
+  } else if (result.status === 'active') {
     finding.summary = `${finding.summary} — ✅ confirmed live`;
   } else if (result.status === 'inactive') {
-    finding.severity = 'low';
+    if (!result.severity) finding.severity = 'low';
     finding.summary = `${finding.summary} — ⚪ revoked (no longer works)`;
   }
 }

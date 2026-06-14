@@ -84,6 +84,33 @@ const ctxJs = `const apiKey = "aB3xK9mZ2pQ7wL5vR8tN4cF6yH1jD0sGqW";`;
 const ctx = await detectSecrets({ ...collected, jsCombined: ctxJs });
 check('flags a high-entropy token that has secret context', has(ctx, (f) => /high-entropy/.test(f.summary) && f.severity === 'low'));
 
+// --- Google API keys: publishable (safe) vs. unidentified -------------------
+// `AIza…` keys are publishable by design for browser SDKs. A Firebase web config
+// key MUST NOT be reported as a leaked secret — that's the false alarm we're killing.
+const fakeGoogleKey = `AIza${'A1b2C3d4E5'.repeat(4).slice(0, 35)}`;
+const firebaseJs = [
+  'const firebaseConfig = {',
+  `  apiKey: "${fakeGoogleKey}",`,
+  '  authDomain: "demo.firebaseapp.com",',
+  '  projectId: "demo",',
+  '  messagingSenderId: "123456789",',
+  '};',
+].join('\n');
+const fb = await detectSecrets({ ...collected, jsCombined: firebaseJs });
+check('does NOT flag a publishable Firebase Google key', !has(fb, (f) => /Google API key/.test(f.summary)));
+
+// A Maps JavaScript loader key is likewise publishable.
+const mapsJs = `<script src="https://maps.googleapis.com/maps/api/js?key=${fakeGoogleKey}&libraries=places"></script>`;
+const maps = await detectSecrets({ ...collected, jsCombined: mapsJs });
+check('does NOT flag a Google Maps loader key', !has(maps, (f) => /Google API key/.test(f.summary)));
+
+// An AIza key with no browser-SDK context is still surfaced, but only at low
+// (it is dangerous solely when unrestricted, which the pattern cannot confirm).
+const bareGoogleJs = `const k = "${fakeGoogleKey}";`;
+const bareGoogle = await detectSecrets({ ...collected, jsCombined: bareGoogleJs });
+check('flags an unidentified Google key as low (not high)', has(bareGoogle, (f) => /Google API key/.test(f.summary) && f.severity === 'low'));
+check('a genuinely dangerous Google OAuth client secret is still high', !has(fb, (f) => /Google API key/.test(f.summary)) && (await detectSecrets({ ...collected, jsCombined: 'const s = "GOCSPX-aZ19bQ_dummyClientSecretValue";' })).some((f) => /OAuth client secret/.test(f.summary) && f.severity === 'high'));
+
 // --- Secret liveness verification (offline, mock probe) ---------------------
 
 function probeResponse(status: number, body: unknown, headers: Record<string, string> = {}): ProbeResponse {
@@ -120,6 +147,32 @@ check('unverified key keeps its original severity', has(unconfirmed, (f) => /Ope
 
 // Verification is opt-in: default scan attaches nothing.
 check('no verification field when verify is off', !secrets.some((f) => f.verification !== undefined));
+
+// --- Google key live restriction probe (verify on) --------------------------
+// An unrestricted key that works against a billable API is escalated to high.
+const gWorksProbe: Probe = async () => probeResponse(200, { status: 'OK', results: [] });
+const gWorks = await detectSecrets({ ...collected, jsCombined: bareGoogleJs }, { verify: true, probe: gWorksProbe });
+check('escalates a confirmed-unrestricted Google key to high', has(gWorks, (f) => /Google API key/.test(f.summary) && f.severity === 'high' && f.verification?.status === 'active'));
+
+// A referrer-restricted key is proven safe and dropped from the report.
+const gRestrictedProbe: Probe = async () =>
+  probeResponse(200, { status: 'REQUEST_DENIED', error_message: 'API keys with referer restrictions cannot be used with this API.' });
+const gRestricted = await detectSecrets({ ...collected, jsCombined: bareGoogleJs }, { verify: true, probe: gRestrictedProbe });
+check('drops a Google key proven restricted/safe', !has(gRestricted, (f) => /Google API key/.test(f.summary)));
+
+// A publishable-context key that turns out to be unrestricted IS surfaced (high) —
+// verification overrides the by-design suppression so real misconfigs aren't hidden.
+const gFirebaseDanger = await detectSecrets({ ...collected, jsCombined: firebaseJs }, { verify: true, probe: gWorksProbe });
+check('surfaces a publishable key proven unrestricted as high', has(gFirebaseDanger, (f) => /Google API key/.test(f.summary) && f.severity === 'high'));
+
+// An invalid / revoked key is dropped.
+const gInvalidProbe: Probe = async () =>
+  probeResponse(200, { status: 'REQUEST_DENIED', error_message: 'The provided API key is invalid.' });
+const gInvalid = await detectSecrets({ ...collected, jsCombined: bareGoogleJs }, { verify: true, probe: gInvalidProbe });
+check('drops an invalid/revoked Google key', !has(gInvalid, (f) => /Google API key/.test(f.summary)));
+
+// The live check never leaks the raw key into the verification record.
+check('Google verification never leaks the raw key', !gWorks.some((f) => new RegExp(fakeGoogleKey).test(JSON.stringify(f.verification ?? {}))));
 
 const owasp = await detectOwasp(collected);
 check('flags missing security headers', has(owasp, (f) => f.type === 'missing_security_headers'));
