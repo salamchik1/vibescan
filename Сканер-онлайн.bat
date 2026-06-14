@@ -1,23 +1,11 @@
 @echo off
 chcp 65001 >nul
 cd /d "%~dp0"
-title VibeScan online (авто: сканер + туннель + Supabase)
-
-echo ============================================================
-echo  VibeScan online
-echo ------------------------------------------------------------
-echo  Поднимаю сканер (если ещё не запущен) и публичный туннель,
-echo  и сам публикую адрес в Supabase. Сайт на Vercel подхватит
-echo  его автоматически — НИЧЕГО в Vercel менять не нужно.
+title VibeScan online
+echo Starting VibeScan online agent...
+echo Keep this window open. Closing it = scanner goes offline.
 echo.
-echo  Просто держи это окно открытым, пока хочешь, чтобы сайт
-echo  работал. Закрыл окно / выключил ПК — сайт покажет
-echo  "сканер офлайн".
-echo ============================================================
-echo.
-
 node tools/scanner-online.mjs
-
 echo.
-echo Агент остановлен. Сайт-сканер недоступен, пока не запустишь снова.
+echo Agent stopped (exit code %errorlevel%).
 pause
