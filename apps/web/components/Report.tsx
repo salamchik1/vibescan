@@ -44,7 +44,7 @@ export function Report({
     <div id="vibescan-report" className="w-full max-w-2xl">
       {/* Verdict banner */}
       <div
-        className={`flex items-center gap-5 rounded-2xl border border-ink/10 bg-white p-5 ring-1 ${verdict.ring}`}
+        className={`flex items-center gap-4 rounded-2xl border border-ink/10 bg-white p-4 ring-1 sm:gap-5 sm:p-5 ${verdict.ring}`}
       >
         <ScoreGauge score={result.score} verdict={result.verdict} />
         <div className="min-w-0">

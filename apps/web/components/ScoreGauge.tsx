@@ -14,7 +14,7 @@ export function ScoreGauge({ score, verdict }: { score: number; verdict: Verdict
   const color = COLORS[verdict];
 
   return (
-    <div className="relative h-32 w-32 shrink-0">
+    <div className="relative h-24 w-24 shrink-0 sm:h-32 sm:w-32">
       <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
         <circle cx="60" cy="60" r={r} fill="none" stroke="#E6E6E6" strokeWidth="10" />
         <circle
@@ -29,7 +29,7 @@ export function ScoreGauge({ score, verdict }: { score: number; verdict: Verdict
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-3xl font-bold" style={{ color }}>
+        <span className="text-2xl font-bold sm:text-3xl" style={{ color }}>
           {score}
         </span>
         <span className="text-xs text-ink/40">/ 100</span>

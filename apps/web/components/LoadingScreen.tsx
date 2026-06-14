@@ -20,11 +20,11 @@ export function LoadingScreen({ url }: { url: string }) {
   }, []);
 
   return (
-    <div className="flex flex-col items-center gap-6 py-16 text-center">
+    <div className="flex w-full flex-col items-center gap-6 py-16 text-center">
       <div className="h-12 w-12 animate-spin rounded-full border-4 border-ink/10 border-t-primary" />
-      <div>
+      <div className="max-w-full">
         <p className="text-sm text-ink/40">Scanning</p>
-        <p className="font-mono text-primary">{url}</p>
+        <p className="max-w-full break-all font-mono text-primary">{url}</p>
       </div>
       <ul className="space-y-2 text-left">
         {STEPS.map((s, i) => (
