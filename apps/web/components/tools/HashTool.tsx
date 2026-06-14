@@ -30,36 +30,36 @@ export function HashTool() {
   return (
     <div className="space-y-4">
       <div>
-        <label className="mb-1.5 block text-xs uppercase tracking-wide text-white/40">Text</label>
+        <label className="mb-1.5 block text-xs uppercase tracking-wide text-ink/40">Text</label>
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
           spellCheck={false}
           rows={4}
           placeholder="Type or paste text to hash…"
-          className="w-full resize-y rounded-xl border border-white/10 bg-white/5 p-3 font-mono text-sm text-white placeholder:text-white/30 outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
+          className="w-full resize-y rounded-xl border border-ink/10 bg-white p-3 font-mono text-sm text-ink placeholder:text-ink/30 outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
         />
       </div>
 
       <div className="space-y-2.5">
         {HASH_ALGOS.map((algo) => (
-          <div key={algo} className="rounded-xl border border-white/10 bg-white/5 p-3">
+          <div key={algo} className="rounded-xl border border-ink/10 bg-white p-3">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <span className="font-ui text-sm font-semibold text-white">{algo}</span>
+                <span className="font-ui text-sm font-semibold text-ink">{algo}</span>
                 {LEGACY[algo] && (
-                  <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-300">
+                  <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-600">
                     legacy
                   </span>
                 )}
               </div>
               <CopyButton value={hashes?.[algo] ?? ''} />
             </div>
-            <p className="mt-2 break-all font-mono text-xs text-white/80">
-              {hashes?.[algo] ?? <span className="text-white/30">—</span>}
+            <p className="mt-2 break-all font-mono text-xs text-ink/80">
+              {hashes?.[algo] ?? <span className="text-ink/30">—</span>}
             </p>
             {LEGACY[algo] && (
-              <p className="mt-1.5 text-[11px] text-amber-300/70">{LEGACY[algo]}</p>
+              <p className="mt-1.5 text-[11px] text-amber-600/70">{LEGACY[algo]}</p>
             )}
           </div>
         ))}

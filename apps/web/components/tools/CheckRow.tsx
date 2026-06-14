@@ -10,9 +10,9 @@ export interface Check {
 }
 
 const STATUS_META: Record<CheckStatus, { icon: string; cls: string }> = {
-  pass: { icon: '✓', cls: 'text-emerald-400' },
+  pass: { icon: '✓', cls: 'text-emerald-600' },
   warn: { icon: '!', cls: 'text-amber-400' },
-  fail: { icon: '✕', cls: 'text-red-400' },
+  fail: { icon: '✕', cls: 'text-red-600' },
   info: { icon: 'i', cls: 'text-sky-400' },
 };
 
@@ -20,14 +20,14 @@ const STATUS_META: Record<CheckStatus, { icon: string; cls: string }> = {
 export function CheckRow({ check }: { check: Check }) {
   const m = STATUS_META[check.status];
   return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+    <div className="rounded-xl border border-ink/10 bg-white p-3">
       <div className="flex items-start gap-2.5">
         <span className={`mt-0.5 font-bold ${m.cls}`} aria-hidden>
           {m.icon}
         </span>
         <div className="min-w-0">
-          <p className="text-sm font-medium text-white">{check.label}</p>
-          <p className="mt-0.5 break-words text-sm leading-relaxed text-white/60">{check.detail}</p>
+          <p className="text-sm font-medium text-ink">{check.label}</p>
+          <p className="mt-0.5 break-words text-sm leading-relaxed text-ink/60">{check.detail}</p>
         </div>
       </div>
     </div>

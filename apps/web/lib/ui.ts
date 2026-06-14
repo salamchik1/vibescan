@@ -8,17 +8,17 @@ export const VERIFICATION_META: Record<
 > = {
   active: {
     label: '✅ Live key — confirmed by provider',
-    badge: 'bg-red-500/15 text-red-200 border-red-500/40',
+    badge: 'bg-red-500/10 text-red-700 border-red-500/30',
     note: 'We made one read-only call to the provider and the key still works right now.',
   },
   inactive: {
     label: '⚪ Revoked — no longer works',
-    badge: 'bg-white/10 text-white/60 border-white/20',
+    badge: 'bg-black/5 text-ink/60 border-ink/15',
     note: 'The provider rejected this key, so it has already been revoked or rotated. Still worth removing from your code.',
   },
   unverified: {
     label: '◌ Could not verify',
-    badge: 'bg-amber-500/10 text-amber-200/80 border-amber-500/30',
+    badge: 'bg-amber-500/10 text-amber-700 border-amber-500/30',
     note: "We couldn't reach the provider to confirm — treat it as live until you've rotated it.",
   },
 };
@@ -27,11 +27,11 @@ export const SEVERITY_META: Record<
   Severity,
   { label: string; emoji: string; badge: string; order: number }
 > = {
-  critical: { label: 'Critical', emoji: '🔴', badge: 'bg-red-500/15 text-red-300 border-red-500/40', order: 0 },
-  high: { label: 'High', emoji: '🔴', badge: 'bg-orange-500/15 text-orange-300 border-orange-500/40', order: 1 },
-  medium: { label: 'Medium', emoji: '🟡', badge: 'bg-amber-500/15 text-amber-300 border-amber-500/40', order: 2 },
-  low: { label: 'Low', emoji: '🟡', badge: 'bg-yellow-500/10 text-yellow-200 border-yellow-500/30', order: 3 },
-  info: { label: 'Info', emoji: '⚪', badge: 'bg-white/10 text-white/70 border-white/20', order: 4 },
+  critical: { label: 'Critical', emoji: '🔴', badge: 'bg-red-500/10 text-red-700 border-red-500/30', order: 0 },
+  high: { label: 'High', emoji: '🔴', badge: 'bg-orange-500/10 text-orange-700 border-orange-500/30', order: 1 },
+  medium: { label: 'Medium', emoji: '🟡', badge: 'bg-amber-500/10 text-amber-700 border-amber-500/30', order: 2 },
+  low: { label: 'Low', emoji: '🟡', badge: 'bg-yellow-500/10 text-yellow-700 border-yellow-500/30', order: 3 },
+  info: { label: 'Info', emoji: '⚪', badge: 'bg-black/5 text-ink/70 border-ink/15', order: 4 },
 };
 
 export const VERDICT_META: Record<
@@ -41,22 +41,22 @@ export const VERDICT_META: Record<
   red: {
     label: 'Not secure',
     emoji: '🔴',
-    ring: 'ring-red-500/60',
-    text: 'text-red-400',
+    ring: 'ring-red-500/40',
+    text: 'text-red-600',
     blurb: 'Critical issues are exposed right now. Fix these before sharing your app.',
   },
   yellow: {
     label: 'Needs attention',
     emoji: '🟡',
-    ring: 'ring-amber-400/60',
-    text: 'text-amber-300',
+    ring: 'ring-amber-400/50',
+    text: 'text-amber-600',
     blurb: 'No critical leaks found, but there are things worth fixing.',
   },
   green: {
     label: 'Looks good',
     emoji: '🟢',
-    ring: 'ring-emerald-400/60',
-    text: 'text-emerald-300',
+    ring: 'ring-emerald-500/40',
+    text: 'text-emerald-600',
     blurb: 'No major issues found in the checks we run. Keep monitoring as you ship.',
   },
 };

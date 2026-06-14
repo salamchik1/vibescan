@@ -4,10 +4,10 @@ export type Tone = 'good' | 'info' | 'low' | 'warn' | 'bad';
 
 const TONE_META: Record<Tone, { cls: string; icon: string }> = {
   good: { cls: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200', icon: '✓' },
-  info: { cls: 'border-sky-500/30 bg-sky-500/10 text-sky-200', icon: 'i' },
-  low: { cls: 'border-sky-500/30 bg-sky-500/10 text-sky-200', icon: '!' },
-  warn: { cls: 'border-amber-500/30 bg-amber-500/10 text-amber-200', icon: '!' },
-  bad: { cls: 'border-red-500/30 bg-red-500/10 text-red-200', icon: '✕' },
+  info: { cls: 'border-sky-500/30 bg-sky-500/10 text-sky-700', icon: 'i' },
+  low: { cls: 'border-sky-500/30 bg-sky-500/10 text-sky-700', icon: '!' },
+  warn: { cls: 'border-amber-500/30 bg-amber-500/10 text-amber-700', icon: '!' },
+  bad: { cls: 'border-red-500/30 bg-red-500/10 text-red-700', icon: '✕' },
 };
 
 /** Map a finding severity to a banner tone. */

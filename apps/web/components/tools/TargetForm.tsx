@@ -36,12 +36,12 @@ export function TargetForm({
   return (
     <form onSubmit={submit} className="space-y-2.5">
       <div className="flex items-center justify-between">
-        <label className="text-xs uppercase tracking-wide text-white/40">{label}</label>
+        <label className="text-xs uppercase tracking-wide text-ink/40">{label}</label>
         {sample && (
           <button
             type="button"
             onClick={() => setValue(sample)}
-            className="text-xs text-white/50 underline hover:text-white/80"
+            className="text-xs text-ink/50 underline hover:text-ink/80"
           >
             Use sample
           </button>
@@ -56,19 +56,19 @@ export function TargetForm({
           autoCapitalize="none"
           autoCorrect="off"
           placeholder={placeholder}
-          className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 font-mono text-sm text-white placeholder:text-white/30 outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
+          className="min-w-0 flex-1 rounded-lg border border-ink/10 bg-white px-3.5 py-2.5 font-mono text-sm text-ink shadow-card placeholder:text-ink/40 outline-none focus:border-ink/40 focus:ring-2 focus:ring-ink/10"
         />
         <button
           type="submit"
           disabled={loading || !value.trim()}
-          className="shrink-0 rounded-xl bg-primary px-5 py-2.5 font-ui font-semibold text-black transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-40"
+          className="btn-primary shrink-0 px-5 py-2.5 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {loading ? 'Checking…' : buttonLabel}
         </button>
       </div>
-      {hint && <p className="text-xs text-white/40">{hint}</p>}
+      {hint && <p className="text-xs text-ink/40">{hint}</p>}
       {error && (
-        <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+        <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-600">
           {error}
         </p>
       )}

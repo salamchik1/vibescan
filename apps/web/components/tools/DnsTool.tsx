@@ -29,9 +29,9 @@ export function DnsTool() {
           <CheckList checks={data.checks} />
 
           {data.caa.length > 0 && (
-            <details className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm">
-              <summary className="cursor-pointer text-white/60">CAA records ({data.caa.length})</summary>
-              <ul className="mt-3 space-y-1 font-mono text-xs text-white/80">
+            <details className="rounded-xl border border-ink/10 bg-white p-4 text-sm">
+              <summary className="cursor-pointer text-ink/60">CAA records ({data.caa.length})</summary>
+              <ul className="mt-3 space-y-1 font-mono text-xs text-ink/80">
                 {data.caa.map((r, i) => (
                   <li key={i} className="break-all">
                     {r}

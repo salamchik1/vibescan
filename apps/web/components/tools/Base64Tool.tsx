@@ -31,19 +31,19 @@ export function Base64Tool() {
             className={`rounded-full border px-4 py-1.5 text-sm capitalize transition ${
               mode === m
                 ? 'border-primary bg-primary/15 text-primary'
-                : 'border-white/10 text-white/60 hover:border-white/30'
+                : 'border-ink/10 text-ink/60 hover:border-ink/30'
             }`}
           >
             {m}
           </button>
         ))}
         {mode === 'encode' && (
-          <label className="ml-2 flex items-center gap-2 text-sm text-white/60">
+          <label className="ml-2 flex items-center gap-2 text-sm text-ink/60">
             <input
               type="checkbox"
               checked={urlSafe}
               onChange={(e) => setUrlSafe(e.target.checked)}
-              className="h-4 w-4 rounded border-white/20 bg-white/10 accent-primary"
+              className="h-4 w-4 rounded border-ink/20 bg-black/5 accent-primary"
             />
             URL-safe
           </label>
@@ -51,7 +51,7 @@ export function Base64Tool() {
       </div>
 
       <div>
-        <label className="mb-1.5 block text-xs uppercase tracking-wide text-white/40">
+        <label className="mb-1.5 block text-xs uppercase tracking-wide text-ink/40">
           {mode === 'encode' ? 'Plain text' : 'Base64'}
         </label>
         <textarea
@@ -60,14 +60,14 @@ export function Base64Tool() {
           spellCheck={false}
           rows={5}
           placeholder={mode === 'encode' ? 'Type or paste text…' : 'Paste base64…'}
-          className="w-full resize-y rounded-xl border border-white/10 bg-white/5 p-3 font-mono text-sm text-white placeholder:text-white/30 outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
+          className="w-full resize-y rounded-xl border border-ink/10 bg-white p-3 font-mono text-sm text-ink placeholder:text-ink/30 outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
         />
       </div>
 
       <div className="flex justify-center">
         <button
           onClick={swap}
-          className="rounded-full border border-white/10 px-4 py-1.5 text-sm text-white/70 transition hover:border-white/30"
+          className="rounded-full border border-ink/10 px-4 py-1.5 text-sm text-ink/70 transition hover:border-ink/30"
         >
           ⇅ Swap
         </button>
@@ -75,7 +75,7 @@ export function Base64Tool() {
 
       <div>
         <div className="mb-1.5 flex items-center justify-between">
-          <label className="text-xs uppercase tracking-wide text-white/40">
+          <label className="text-xs uppercase tracking-wide text-ink/40">
             {mode === 'encode' ? 'Base64' : 'Plain text'}
           </label>
           <CopyButton value={result.ok ? result.output : ''} />
@@ -86,10 +86,10 @@ export function Base64Tool() {
             readOnly
             rows={5}
             spellCheck={false}
-            className="w-full resize-y rounded-xl border border-white/10 bg-black/40 p-3 font-mono text-sm text-white/90 outline-none"
+            className="w-full resize-y rounded-xl border border-ink/10 bg-black/5 p-3 font-mono text-sm text-ink/90 outline-none"
           />
         ) : (
-          <p className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+          <p className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-600">
             {result.error}
           </p>
         )}

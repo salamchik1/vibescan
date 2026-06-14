@@ -1,16 +1,43 @@
-@import url('https://fonts.googleapis.com/css2?family=Geologica:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Aleo:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Host+Grotesk:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Azeret+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 body {
-  @apply bg-ink text-white antialiased;
-  background-image: radial-gradient(900px 500px at 50% -10%, rgba(243, 254, 0, 0.06), transparent);
+  @apply bg-paper text-ink antialiased;
+  /* Faint Twenty-style top glow on the muted page. */
+  background-image: radial-gradient(900px 500px at 50% -10%, rgba(0, 0, 0, 0.04), transparent);
+}
+
+/* Twenty signature button: rounded with a bevelled bottom-right corner. */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 font-ui text-sm font-medium transition;
+    border-radius: 8px;
+    /* Cut the bottom-right corner like Twenty's buttons. */
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 11px), calc(100% - 11px) 100%, 0 100%);
+  }
+  .btn-primary {
+    @apply btn bg-ink px-5 py-3 text-white;
+  }
+  .btn-primary:hover {
+    @apply bg-primary-dark;
+  }
+  .btn-secondary {
+    @apply btn border border-ink/15 bg-card px-5 py-3 text-ink;
+  }
+  .btn-secondary:hover {
+    @apply bg-ink/[0.04];
+  }
+  /* Twenty card: white surface, hairline border, soft shadow. */
+  .card-surface {
+    @apply rounded-2xl border border-ink/10 bg-card shadow-card;
+  }
 }
 
 /* PDF export (Download PDF -> the browser's "Save as PDF"). Force a light, ink-friendly

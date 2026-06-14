@@ -39,27 +39,27 @@ export function CorsTool() {
 
           <CheckList checks={data.checks} />
 
-          <details className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm">
-            <summary className="cursor-pointer text-white/60">Response details</summary>
+          <details className="rounded-xl border border-ink/10 bg-white p-4 text-sm">
+            <summary className="cursor-pointer text-ink/60">Response details</summary>
             <dl className="mt-3 grid grid-cols-[auto,1fr] gap-x-4 gap-y-1.5 font-mono text-xs">
-              <dt className="text-white/40">HTTP status</dt>
-              <dd className="text-white/80">{data.httpStatus}</dd>
-              <dt className="text-white/40">Probe Origin</dt>
-              <dd className="break-all text-white/80">{data.probeOrigin}</dd>
-              <dt className="text-white/40">Allow-Origin</dt>
-              <dd className="break-all text-white/80">{data.headers.allowOrigin ?? '(none)'}</dd>
-              <dt className="text-white/40">Allow-Credentials</dt>
-              <dd className="text-white/80">{String(data.headers.allowCredentials)}</dd>
+              <dt className="text-ink/40">HTTP status</dt>
+              <dd className="text-ink/80">{data.httpStatus}</dd>
+              <dt className="text-ink/40">Probe Origin</dt>
+              <dd className="break-all text-ink/80">{data.probeOrigin}</dd>
+              <dt className="text-ink/40">Allow-Origin</dt>
+              <dd className="break-all text-ink/80">{data.headers.allowOrigin ?? '(none)'}</dd>
+              <dt className="text-ink/40">Allow-Credentials</dt>
+              <dd className="text-ink/80">{String(data.headers.allowCredentials)}</dd>
               {data.headers.allowMethods && (
                 <>
-                  <dt className="text-white/40">Allow-Methods</dt>
-                  <dd className="break-all text-white/80">{data.headers.allowMethods}</dd>
+                  <dt className="text-ink/40">Allow-Methods</dt>
+                  <dd className="break-all text-ink/80">{data.headers.allowMethods}</dd>
                 </>
               )}
               {data.headers.allowHeaders && (
                 <>
-                  <dt className="text-white/40">Allow-Headers</dt>
-                  <dd className="break-all text-white/80">{data.headers.allowHeaders}</dd>
+                  <dt className="text-ink/40">Allow-Headers</dt>
+                  <dd className="break-all text-ink/80">{data.headers.allowHeaders}</dd>
                 </>
               )}
             </dl>

@@ -2,11 +2,11 @@ export const metadata = { title: 'Privacy — VibeScan' };
 
 export default function Privacy() {
   return (
-    <main className="mx-auto max-w-2xl px-5 py-16 text-white/70">
+    <main className="mx-auto max-w-2xl px-5 py-16 text-ink/70">
       <a href="/" className="text-sm text-primary hover:text-primary-dark">
         ← Back
       </a>
-      <h1 className="mt-6 text-2xl font-bold text-white">Privacy</h1>
+      <h1 className="mt-6 text-2xl font-bold text-ink">Privacy</h1>
       <div className="mt-4 space-y-4 text-sm leading-relaxed">
         <p>
           The free scanner does not require an account. We do not ask for access to your source code

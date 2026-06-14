@@ -37,18 +37,18 @@ export default async function DashboardPage() {
 
       <div className="mt-12 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Your scans</h1>
-          <p className="mt-1 text-sm text-white/50">{user.email}</p>
+          <h1 className="text-2xl font-bold text-ink">Your scans</h1>
+          <p className="mt-1 text-sm text-ink/50">{user.email}</p>
         </div>
         <form action="/auth/signout" method="post">
-          <button className="rounded-full border border-white/15 px-4 py-1.5 text-sm text-white/70 transition hover:border-white/40 hover:text-white">
+          <button className="rounded-full border border-ink/15 px-4 py-1.5 text-sm text-ink/70 transition hover:border-ink/40 hover:text-ink">
             Sign out
           </button>
         </form>
       </div>
 
       {scans.length === 0 ? (
-        <div className="mt-10 rounded-xl border border-white/10 bg-white/5 p-6 text-center text-sm text-white/60">
+        <div className="mt-10 rounded-xl border border-ink/10 bg-white p-6 text-center text-sm text-ink/60">
           No scans yet.{' '}
           <Link href="/" className="text-primary underline">
             Run your first scan →
@@ -60,25 +60,25 @@ export default async function DashboardPage() {
             <li key={s.id}>
               <Link
                 href={`/r/${s.id}`}
-                className="flex items-center gap-4 rounded-xl border border-white/10 bg-white/5 px-4 py-3 transition hover:border-white/30"
+                className="flex items-center gap-4 rounded-xl border border-ink/10 bg-white px-4 py-3 transition hover:border-ink/30"
               >
                 <span
-                  className={`h-2.5 w-2.5 shrink-0 rounded-full ${VERDICT_DOT[s.verdict] ?? 'bg-white/40'}`}
+                  className={`h-2.5 w-2.5 shrink-0 rounded-full ${VERDICT_DOT[s.verdict] ?? 'bg-ink/30'}`}
                 />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate font-mono text-sm text-white/80">{s.target}</div>
-                  <div className="text-xs text-white/40">
+                  <div className="truncate font-mono text-sm text-ink/80">{s.target}</div>
+                  <div className="text-xs text-ink/40">
                     {new Date(s.created_at).toLocaleString()}
                   </div>
                 </div>
-                <span className="shrink-0 text-sm font-semibold text-white/70">{s.score}/100</span>
+                <span className="shrink-0 text-sm font-semibold text-ink/70">{s.score}/100</span>
               </Link>
             </li>
           ))}
         </ul>
       )}
 
-      <p className="mt-8 text-center text-xs text-white/30">
+      <p className="mt-8 text-center text-xs text-ink/30">
         History, monitoring and alerts build on this. Scans you run while signed in are saved here
         automatically.
       </p>

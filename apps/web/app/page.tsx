@@ -52,18 +52,22 @@ export default function Home() {
       <SiteHeader active="scan" />
 
       {state.phase !== 'done' && (
-        <section className="mt-12 flex w-full flex-col items-center text-center">
-          <h1 className="max-w-2xl text-3xl font-bold leading-tight text-white sm:text-4xl">
-            Is your vibe-coded app leaking secrets?
+        <section className="mt-16 flex w-full flex-col items-center text-center sm:mt-20">
+          <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-ink/10 bg-card px-3 py-1 text-xs font-medium text-ink/70 shadow-card">
+            <span aria-hidden>🛡️</span> Security scanner for vibe-coded apps
+          </span>
+          <h1 className="max-w-3xl text-4xl leading-[1.1] tracking-tight text-ink sm:text-5xl">
+            <span className="block font-serif font-light">Is your vibe-coded app</span>
+            <span className="block font-sans font-semibold">leaking secrets?</span>
           </h1>
-          <p className="mt-4 max-w-xl text-white/60">
+          <p className="mt-5 max-w-xl text-base text-ink/60">
             Paste your app&apos;s URL. In about a minute we check for leaked API keys, open databases,
             and missing logins — and tell you, in plain English, exactly how to fix each one.
           </p>
-          <div className="mt-8 flex w-full flex-col items-center">
+          <div className="mt-9 flex w-full flex-col items-center">
             <ScanForm onScan={runScan} disabled={busy} />
           </div>
-          <div className="mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-white/40">
+          <div className="mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-ink/40">
             <span>✓ No signup</span>
             <span>✓ No access to your code</span>
             <span>✓ We don&apos;t store your keys</span>
@@ -74,7 +78,7 @@ export default function Home() {
       {state.phase === 'loading' && <LoadingScreen url={state.label} />}
 
       {state.phase === 'error' && (
-        <p className="mt-8 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+        <p className="mt-8 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-600">
           {state.message}
         </p>
       )}
@@ -87,30 +91,30 @@ export default function Home() {
             shareUrl={state.id ? `/r/${state.id}` : undefined}
           />
           {state.id && (
-            <p className="mt-4 text-center text-xs text-white/40">
+            <p className="mt-4 text-center text-xs text-ink/40">
               This report is saved.{' '}
-              <a href={`/r/${state.id}`} className="underline hover:text-white/70">
+              <a href={`/r/${state.id}`} className="underline hover:text-ink/70">
                 Open its permanent link →
               </a>
             </p>
           )}
           <button
             onClick={() => setState({ phase: 'idle' })}
-            className="mt-8 text-sm text-white/40 hover:text-white/70"
+            className="mt-8 text-sm text-ink/40 hover:text-ink/70"
           >
             ← Scan another app
           </button>
         </section>
       )}
 
-      <footer className="mt-auto w-full pt-16 text-center text-xs text-white/40">
+      <footer className="mt-auto w-full pt-16 text-center text-xs text-ink/40">
         VibeScan checks the most common, high-impact issues in vibe-coded apps. It is not a full
         security audit.{' '}
-        <a href="/terms" className="underline hover:text-white/70">
+        <a href="/terms" className="underline hover:text-ink/70">
           Terms
         </a>{' '}
         ·{' '}
-        <a href="/privacy" className="underline hover:text-white/70">
+        <a href="/privacy" className="underline hover:text-ink/70">
           Privacy
         </a>
       </footer>

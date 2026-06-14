@@ -28,20 +28,20 @@ export function EmailTool() {
 
           <CheckList checks={data.checks} />
 
-          <details className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm">
-            <summary className="cursor-pointer text-white/60">Raw records</summary>
+          <details className="rounded-xl border border-ink/10 bg-white p-4 text-sm">
+            <summary className="cursor-pointer text-ink/60">Raw records</summary>
             <dl className="mt-3 space-y-2 font-mono text-xs">
               <div>
-                <dt className="text-white/40">SPF</dt>
-                <dd className="mt-0.5 break-all text-white/80">{data.spf ?? '(none)'}</dd>
+                <dt className="text-ink/40">SPF</dt>
+                <dd className="mt-0.5 break-all text-ink/80">{data.spf ?? '(none)'}</dd>
               </div>
               <div>
-                <dt className="text-white/40">DMARC</dt>
-                <dd className="mt-0.5 break-all text-white/80">{data.dmarc ?? '(none)'}</dd>
+                <dt className="text-ink/40">DMARC</dt>
+                <dd className="mt-0.5 break-all text-ink/80">{data.dmarc ?? '(none)'}</dd>
               </div>
               <div>
-                <dt className="text-white/40">MX</dt>
-                <dd className="mt-0.5 break-all text-white/80">
+                <dt className="text-ink/40">MX</dt>
+                <dd className="mt-0.5 break-all text-ink/80">
                   {data.mx.length ? data.mx.join(', ') : '(none)'}
                 </dd>
               </div>

@@ -46,7 +46,7 @@ export function ScanForm({
   return (
     <form onSubmit={submit} className="w-full max-w-xl">
       {/* Mode tabs */}
-      <div className="mb-4 inline-flex rounded-full border border-white/10 bg-white/5 p-1 text-sm">
+      <div className="mb-4 inline-flex rounded-lg border border-ink/10 bg-white p-1 text-sm shadow-card">
         {(
           [
             { id: 'url', label: 'Scan a URL' },
@@ -61,8 +61,8 @@ export function ScanForm({
               setError(null);
             }}
             disabled={disabled}
-            className={`rounded-full px-4 py-1.5 transition ${
-              mode === t.id ? 'bg-primary font-semibold text-black' : 'text-white/60 hover:text-white'
+            className={`rounded-md px-4 py-1.5 transition ${
+              mode === t.id ? 'bg-ink font-semibold text-white' : 'text-ink/60 hover:text-ink'
             }`}
           >
             {t.label}
@@ -81,30 +81,30 @@ export function ScanForm({
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               disabled={disabled}
-              className="flex-1 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-base text-white placeholder:text-white/40 outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 disabled:opacity-60"
+              className="flex-1 rounded-lg border border-ink/10 bg-white px-5 py-3 text-base text-ink shadow-card placeholder:text-ink/40 outline-none focus:border-ink/40 focus:ring-2 focus:ring-ink/10 disabled:opacity-60"
             />
             <button
               type="submit"
               disabled={disabled}
-              className="rounded-full bg-primary px-6 py-3 font-ui font-semibold text-black transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
+              className="btn-primary px-6 py-3 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {disabled ? 'Scanning…' : 'Scan for free'}
             </button>
           </div>
 
-          <label className="mt-3 flex items-start gap-2 text-sm text-white/60">
+          <label className="mt-3 flex items-start gap-2 text-sm text-ink/60">
             <input
               type="checkbox"
               checked={agreed}
               onChange={(e) => setAgreed(e.target.checked)}
               disabled={disabled}
-              className="mt-0.5 h-4 w-4 rounded border-white/20 bg-white/10 accent-primary"
+              className="mt-0.5 h-4 w-4 rounded border-ink/20 bg-black/5 accent-primary"
             />
             <span>I own this site or have permission to scan it.</span>
           </label>
 
-          {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
-          <p className="mt-2 text-xs text-white/40">
+          {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+          <p className="mt-2 text-xs text-ink/40">
             We scan only the public page. We never ask for your code or store your keys.
           </p>
         </>
@@ -116,18 +116,18 @@ export function ScanForm({
             disabled={disabled}
             rows={10}
             placeholder={'Paste your bundled JS, .env, supabase config, or any source file here…'}
-            className="w-full resize-y rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-mono text-sm text-white placeholder:text-white/40 outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 disabled:opacity-60"
+            className="w-full resize-y rounded-lg border border-ink/10 bg-white px-4 py-3 font-mono text-sm text-ink shadow-card placeholder:text-ink/40 outline-none focus:border-ink/40 focus:ring-2 focus:ring-ink/10 disabled:opacity-60"
           />
           <button
             type="submit"
             disabled={disabled}
-            className="mt-3 w-full rounded-full bg-primary px-6 py-3 font-ui font-semibold text-black transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+            className="btn-primary mt-3 w-full px-6 py-3 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
           >
             {disabled ? 'Scanning…' : 'Scan this code'}
           </button>
 
-          {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
-          <p className="mt-2 text-xs text-white/40">
+          {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+          <p className="mt-2 text-xs text-ink/40">
             Code scans run fully in our scanner — we find leaked keys, exposed database credentials,
             and hard-coded Supabase/Firebase config. Live-server checks (headers, CORS, unprotected
             routes) need a URL.

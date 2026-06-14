@@ -34,13 +34,13 @@ export function SecurityTxtTool() {
           <CheckList checks={data.checks} />
 
           {data.fields.length > 0 && (
-            <details className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm">
-              <summary className="cursor-pointer text-white/60">Parsed fields ({data.fields.length})</summary>
+            <details className="rounded-xl border border-ink/10 bg-white p-4 text-sm">
+              <summary className="cursor-pointer text-ink/60">Parsed fields ({data.fields.length})</summary>
               <ul className="mt-3 space-y-1.5 font-mono text-xs">
                 {data.fields.map((f, i) => (
                   <li key={i} className="flex flex-wrap gap-x-2">
                     <span className="text-primary">{f.name}:</span>
-                    <span className="break-all text-white/70">{f.value}</span>
+                    <span className="break-all text-ink/70">{f.value}</span>
                   </li>
                 ))}
               </ul>

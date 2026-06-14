@@ -5,9 +5,9 @@ import { analyzeJwt, type IssueLevel } from '../../lib/tools/jwt';
 import { CopyButton } from './CopyButton';
 
 const LEVEL_STYLE: Record<IssueLevel, { badge: string; icon: string }> = {
-  critical: { badge: 'border-red-500/40 bg-red-500/10 text-red-300', icon: '🔴' },
-  warning: { badge: 'border-amber-500/40 bg-amber-500/10 text-amber-300', icon: '🟡' },
-  info: { badge: 'border-white/15 bg-white/5 text-white/70', icon: '⚪' },
+  critical: { badge: 'border-red-500/40 bg-red-500/10 text-red-600', icon: '🔴' },
+  warning: { badge: 'border-amber-500/40 bg-amber-500/10 text-amber-600', icon: '🟡' },
+  info: { badge: 'border-ink/15 bg-white text-ink/70', icon: '⚪' },
 };
 
 const SAMPLE =
@@ -25,10 +25,10 @@ export function JwtTool() {
     <div className="space-y-5">
       <div>
         <div className="mb-1.5 flex items-center justify-between">
-          <label className="text-xs uppercase tracking-wide text-white/40">JWT</label>
+          <label className="text-xs uppercase tracking-wide text-ink/40">JWT</label>
           <button
             onClick={() => setToken(SAMPLE)}
-            className="text-xs text-white/50 underline hover:text-white/80"
+            className="text-xs text-ink/50 underline hover:text-ink/80"
           >
             Load sample
           </button>
@@ -39,12 +39,12 @@ export function JwtTool() {
           spellCheck={false}
           rows={4}
           placeholder="Paste a JWT (eyJ…)…"
-          className="w-full resize-y break-all rounded-xl border border-white/10 bg-white/5 p-3 font-mono text-sm text-white placeholder:text-white/30 outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
+          className="w-full resize-y break-all rounded-xl border border-ink/10 bg-white p-3 font-mono text-sm text-ink placeholder:text-ink/30 outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
         />
       </div>
 
       {token.trim() && analysis.error && (
-        <p className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+        <p className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-600">
           {analysis.error}
         </p>
       )}
@@ -53,7 +53,7 @@ export function JwtTool() {
         <>
           {/* Security checks */}
           <section>
-            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-white/50">
+            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-ink/50">
               Security checks
             </h2>
             <div className="space-y-2">
@@ -65,7 +65,7 @@ export function JwtTool() {
                       <span aria-hidden>{s.icon}</span>
                       {issue.title}
                     </div>
-                    <p className="mt-1 text-sm leading-relaxed text-white/70">{issue.detail}</p>
+                    <p className="mt-1 text-sm leading-relaxed text-ink/70">{issue.detail}</p>
                   </div>
                 );
               })}
@@ -74,14 +74,14 @@ export function JwtTool() {
 
           {/* Timeline */}
           {analysis.timeline.length > 0 && (
-            <section className="rounded-xl border border-white/10 bg-white/5 p-4">
-              <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-white/50">
+            <section className="rounded-xl border border-ink/10 bg-white p-4">
+              <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-ink/50">
                 Validity
               </h2>
               <ul className="space-y-1.5 text-sm">
                 {analysis.timeline.map((t) => (
-                  <li key={t.claim} className="flex flex-wrap gap-x-2 text-white/70">
-                    <span className="w-24 shrink-0 text-white/50">{t.label}</span>
+                  <li key={t.claim} className="flex flex-wrap gap-x-2 text-ink/70">
+                    <span className="w-24 shrink-0 text-ink/50">{t.label}</span>
                     <span className="font-mono text-xs">{t.value}</span>
                   </li>
                 ))}
@@ -95,12 +95,12 @@ export function JwtTool() {
             <Segment title="Payload" json={pretty(analysis.payload)} />
           </div>
 
-          <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-            <span className="text-xs uppercase tracking-wide text-white/40">Signature</span>
-            <p className="mt-1 break-all font-mono text-xs text-white/60">
+          <div className="rounded-xl border border-ink/10 bg-white p-3">
+            <span className="text-xs uppercase tracking-wide text-ink/40">Signature</span>
+            <p className="mt-1 break-all font-mono text-xs text-ink/60">
               {analysis.signature || '(none)'}
             </p>
-            <p className="mt-2 text-xs text-white/40">
+            <p className="mt-2 text-xs text-ink/40">
               The signature is not verified here — that needs the secret or public key on your server.
             </p>
           </div>
@@ -112,12 +112,12 @@ export function JwtTool() {
 
 function Segment({ title, json }: { title: string; json: string }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-black/40 p-3">
+    <div className="rounded-xl border border-ink/10 bg-black/5 p-3">
       <div className="mb-1.5 flex items-center justify-between">
-        <span className="text-xs uppercase tracking-wide text-white/40">{title}</span>
+        <span className="text-xs uppercase tracking-wide text-ink/40">{title}</span>
         <CopyButton value={json} />
       </div>
-      <pre className="overflow-x-auto whitespace-pre-wrap break-words text-xs text-white/90">
+      <pre className="overflow-x-auto whitespace-pre-wrap break-words text-xs text-ink/90">
         {json}
       </pre>
     </div>

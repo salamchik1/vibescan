@@ -14,7 +14,7 @@ export function PasswordTool() {
   return (
     <div className="space-y-5">
       <div>
-        <label className="mb-1.5 block text-xs uppercase tracking-wide text-white/40">Password</label>
+        <label className="mb-1.5 block text-xs uppercase tracking-wide text-ink/40">Password</label>
         <div className="relative">
           <input
             type={show ? 'text' : 'password'}
@@ -23,16 +23,16 @@ export function PasswordTool() {
             autoComplete="off"
             spellCheck={false}
             placeholder="Type a password to test…"
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 pr-16 font-mono text-sm text-white placeholder:text-white/30 outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
+            className="w-full rounded-xl border border-ink/10 bg-white px-3 py-2.5 pr-16 font-mono text-sm text-ink placeholder:text-ink/30 outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
           />
           <button
             onClick={() => setShow((s) => !s)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1 text-xs text-white/50 hover:text-white"
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1 text-xs text-ink/50 hover:text-ink"
           >
             {show ? 'Hide' : 'Show'}
           </button>
         </div>
-        <p className="mt-1.5 text-xs text-white/40">
+        <p className="mt-1.5 text-xs text-ink/40">
           Tested locally in your browser — this password is never transmitted.
         </p>
       </div>
@@ -53,7 +53,7 @@ export function PasswordTool() {
             {pw ? result.label : '—'}
           </span>
           {pw && (
-            <span className="text-white/50">
+            <span className="text-ink/50">
               {result.entropyBits} bits · cracks in {result.crackTime}
             </span>
           )}
@@ -61,7 +61,7 @@ export function PasswordTool() {
       </div>
 
       {result.warnings.length > 0 && (
-        <ul className="space-y-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
+        <ul className="space-y-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-700">
           {result.warnings.map((w, i) => (
             <li key={i} className="flex gap-2">
               <span aria-hidden>⚠️</span> {w}
@@ -71,7 +71,7 @@ export function PasswordTool() {
       )}
 
       {result.suggestions.length > 0 && (
-        <ul className="space-y-1.5 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-white/70">
+        <ul className="space-y-1.5 rounded-xl border border-ink/10 bg-white p-4 text-sm text-ink/70">
           {result.suggestions.map((s, i) => (
             <li key={i} className="flex gap-2">
               <span className="text-primary" aria-hidden>

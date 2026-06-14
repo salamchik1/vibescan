@@ -21,9 +21,9 @@ export function LoadingScreen({ url }: { url: string }) {
 
   return (
     <div className="flex flex-col items-center gap-6 py-16 text-center">
-      <div className="h-12 w-12 animate-spin rounded-full border-4 border-white/10 border-t-primary" />
+      <div className="h-12 w-12 animate-spin rounded-full border-4 border-ink/10 border-t-primary" />
       <div>
-        <p className="text-sm text-white/40">Scanning</p>
+        <p className="text-sm text-ink/40">Scanning</p>
         <p className="font-mono text-primary">{url}</p>
       </div>
       <ul className="space-y-2 text-left">
@@ -31,17 +31,17 @@ export function LoadingScreen({ url }: { url: string }) {
           <li
             key={s}
             className={`flex items-center gap-2 text-sm transition ${
-              i <= step ? 'text-white/80' : 'text-white/30'
+              i <= step ? 'text-ink/80' : 'text-ink/30'
             }`}
           >
-            <span className={i < step ? 'text-emerald-400' : 'text-white/30'}>
+            <span className={i < step ? 'text-emerald-600' : 'text-ink/30'}>
               {i < step ? '✓' : i === step ? '…' : '○'}
             </span>
             {s}
           </li>
         ))}
       </ul>
-      <p className="max-w-sm text-xs text-white/40">
+      <p className="max-w-sm text-xs text-ink/40">
         This usually takes 30–90 seconds. We load your site, inspect it, and gently probe a few
         endpoints — read-only.
       </p>

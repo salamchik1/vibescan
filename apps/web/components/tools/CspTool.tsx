@@ -12,9 +12,9 @@ const GRADE_COLOR: Record<Grade, string> = {
 };
 
 const STATUS_META: Record<CheckStatus, { icon: string; cls: string }> = {
-  pass: { icon: '✓', cls: 'text-emerald-400' },
+  pass: { icon: '✓', cls: 'text-emerald-600' },
   warn: { icon: '!', cls: 'text-amber-400' },
-  fail: { icon: '✕', cls: 'text-red-400' },
+  fail: { icon: '✕', cls: 'text-red-600' },
 };
 
 const SAMPLE =
@@ -29,12 +29,12 @@ export function CspTool() {
     <div className="space-y-5">
       <div>
         <div className="mb-1.5 flex items-center justify-between">
-          <label className="text-xs uppercase tracking-wide text-white/40">
+          <label className="text-xs uppercase tracking-wide text-ink/40">
             Content-Security-Policy
           </label>
           <button
             onClick={() => setCsp(SAMPLE)}
-            className="text-xs text-white/50 underline hover:text-white/80"
+            className="text-xs text-ink/50 underline hover:text-ink/80"
           >
             Load sample
           </button>
@@ -45,9 +45,9 @@ export function CspTool() {
           spellCheck={false}
           rows={4}
           placeholder="default-src 'self'; script-src 'self' …"
-          className="w-full resize-y rounded-xl border border-white/10 bg-white/5 p-3 font-mono text-sm text-white placeholder:text-white/30 outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
+          className="w-full resize-y rounded-xl border border-ink/10 bg-white p-3 font-mono text-sm text-ink placeholder:text-ink/30 outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
         />
-        <p className="mt-1.5 text-xs text-white/40">
+        <p className="mt-1.5 text-xs text-ink/40">
           Paste the value of your <span className="font-mono">Content-Security-Policy</span> header.
         </p>
       </div>
@@ -55,7 +55,7 @@ export function CspTool() {
       {report.valid && (
         <>
           {/* Grade */}
-          <div className="flex items-center gap-5 rounded-2xl border border-white/10 bg-white/5 p-5">
+          <div className="flex items-center gap-5 rounded-2xl border border-ink/10 bg-white p-5">
             <div
               className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border-2 text-4xl font-bold"
               style={{ color, borderColor: color }}
@@ -63,9 +63,9 @@ export function CspTool() {
               {report.grade}
             </div>
             <div>
-              <div className="text-sm text-white/50">CSP grade</div>
-              <div className="text-2xl font-bold text-white">{report.score}/100</div>
-              <p className="mt-1 text-sm text-white/60">
+              <div className="text-sm text-ink/50">CSP grade</div>
+              <div className="text-2xl font-bold text-ink">{report.score}/100</div>
+              <p className="mt-1 text-sm text-ink/60">
                 {report.checks.filter((c) => c.status === 'pass').length}/{report.checks.length}{' '}
                 checks passed
               </p>
@@ -77,14 +77,14 @@ export function CspTool() {
             {report.checks.map((c) => {
               const m = STATUS_META[c.status];
               return (
-                <div key={c.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                <div key={c.id} className="rounded-xl border border-ink/10 bg-white p-3">
                   <div className="flex items-start gap-2.5">
                     <span className={`mt-0.5 font-bold ${m.cls}`} aria-hidden>
                       {m.icon}
                     </span>
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-white">{c.label}</p>
-                      <p className="mt-0.5 text-sm leading-relaxed text-white/60">{c.detail}</p>
+                      <p className="text-sm font-medium text-ink">{c.label}</p>
+                      <p className="mt-0.5 text-sm leading-relaxed text-ink/60">{c.detail}</p>
                     </div>
                   </div>
                 </div>
@@ -94,15 +94,15 @@ export function CspTool() {
 
           {/* Parsed directives */}
           {report.directives.length > 0 && (
-            <details className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm">
-              <summary className="cursor-pointer text-white/60">
+            <details className="rounded-xl border border-ink/10 bg-white p-4 text-sm">
+              <summary className="cursor-pointer text-ink/60">
                 Parsed directives ({report.directives.length})
               </summary>
               <ul className="mt-3 space-y-1.5 font-mono text-xs">
                 {report.directives.map((d) => (
                   <li key={d.name} className="flex flex-wrap gap-x-2">
                     <span className="text-primary">{d.name}</span>
-                    <span className="text-white/60">{d.value || '(empty)'}</span>
+                    <span className="text-ink/60">{d.value || '(empty)'}</span>
                   </li>
                 ))}
               </ul>

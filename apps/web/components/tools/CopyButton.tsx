@@ -32,7 +32,7 @@ export function CopyButton({
       type="button"
       onClick={copy}
       disabled={disabled || !value}
-      className={`rounded-md bg-white/10 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40 ${className}`}
+      className={`rounded-md bg-black/5 px-2.5 py-1 text-xs font-medium text-ink transition hover:bg-black/10 disabled:cursor-not-allowed disabled:opacity-40 ${className}`}
     >
       {copied ? 'Copied ✓' : label}
     </button>

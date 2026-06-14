@@ -39,20 +39,20 @@ export default async function ReportPage({
         <Report result={scan.result} shareUrl={`/r/${scan.id}`} />
         <a
           href="/"
-          className="mt-8 text-sm text-white/40 hover:text-white/70"
+          className="mt-8 text-sm text-ink/40 hover:text-ink/70"
         >
           ← Scan another app
         </a>
       </section>
 
-      <footer className="mt-auto w-full pt-16 text-center text-xs text-white/40">
+      <footer className="mt-auto w-full pt-16 text-center text-xs text-ink/40">
         VibeScan checks the most common, high-impact issues in vibe-coded apps. It is not a full
         security audit.{' '}
-        <a href="/terms" className="underline hover:text-white/70">
+        <a href="/terms" className="underline hover:text-ink/70">
           Terms
         </a>{' '}
         ·{' '}
-        <a href="/privacy" className="underline hover:text-white/70">
+        <a href="/privacy" className="underline hover:text-ink/70">
           Privacy
         </a>
       </footer>

@@ -43,22 +43,22 @@ export function BreachTool() {
 
           <section className="space-y-3">
             {data.breaches.map((b) => (
-              <div key={b.name} className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <div key={b.name} className="rounded-xl border border-ink/10 bg-white p-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="font-ui font-semibold text-white">{b.name}</h3>
+                  <h3 className="font-ui font-semibold text-ink">{b.name}</h3>
                   {b.isSensitive && (
-                    <span className="rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[10px] font-medium text-red-300">
+                    <span className="rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[10px] font-medium text-red-600">
                       sensitive
                     </span>
                   )}
                   {!b.isVerified && (
-                    <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-300">
+                    <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-600">
                       unverified
                     </span>
                   )}
-                  <span className="ml-auto text-xs text-white/40">{b.breachDate}</span>
+                  <span className="ml-auto text-xs text-ink/40">{b.breachDate}</span>
                 </div>
-                <p className="mt-1 text-xs text-white/50">
+                <p className="mt-1 text-xs text-ink/50">
                   {b.domain || 'unknown domain'} · {b.pwnCount.toLocaleString()} accounts
                 </p>
                 {b.dataClasses.length > 0 && (
@@ -66,14 +66,14 @@ export function BreachTool() {
                     {b.dataClasses.map((d) => (
                       <span
                         key={d}
-                        className="rounded-md border border-white/10 bg-black/30 px-2 py-0.5 text-[11px] text-white/70"
+                        className="rounded-md border border-ink/10 bg-black/5 px-2 py-0.5 text-[11px] text-ink/70"
                       >
                         {d}
                       </span>
                     ))}
                   </div>
                 )}
-                <p className="mt-2.5 text-sm leading-relaxed text-white/60">{stripHtml(b.description)}</p>
+                <p className="mt-2.5 text-sm leading-relaxed text-ink/60">{stripHtml(b.description)}</p>
               </div>
             ))}
           </section>

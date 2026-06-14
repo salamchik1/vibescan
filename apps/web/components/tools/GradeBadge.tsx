@@ -24,7 +24,7 @@ export function GradeBadge({
 }) {
   const color = GRADE_COLOR[grade];
   return (
-    <div className="flex items-center gap-5 rounded-2xl border border-white/10 bg-white/5 p-5">
+    <div className="flex items-center gap-5 rounded-2xl border border-ink/10 bg-white p-5">
       <div
         className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border-2 text-4xl font-bold"
         style={{ color, borderColor: color }}
@@ -32,9 +32,9 @@ export function GradeBadge({
         {grade}
       </div>
       <div className="min-w-0">
-        <div className="text-sm text-white/50">{title}</div>
-        <div className="text-lg font-semibold text-white">{summary}</div>
-        {meta && <p className="mt-1 text-sm text-white/60">{meta}</p>}
+        <div className="text-sm text-ink/50">{title}</div>
+        <div className="text-lg font-semibold text-ink">{summary}</div>
+        {meta && <p className="mt-1 text-sm text-ink/60">{meta}</p>}
       </div>
     </div>
   );

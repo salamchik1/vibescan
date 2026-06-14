@@ -57,7 +57,7 @@ export function SriTool() {
             className={`rounded-full border px-4 py-1.5 text-sm transition ${
               kind === k
                 ? 'border-primary bg-primary/15 text-primary'
-                : 'border-white/10 text-white/60 hover:border-white/30'
+                : 'border-ink/10 text-ink/60 hover:border-ink/30'
             }`}
           >
             {k === 'script' ? '<script>' : '<link> stylesheet'}
@@ -69,7 +69,7 @@ export function SriTool() {
               key={a}
               onClick={() => setAlgo(a)}
               className={`rounded-full px-3 py-1 transition ${
-                algo === a ? 'bg-white/10 text-white' : 'text-white/50 hover:text-white'
+                algo === a ? 'bg-black/5 text-ink' : 'text-ink/50 hover:text-ink'
               }`}
             >
               {a}
@@ -79,7 +79,7 @@ export function SriTool() {
       </div>
 
       <div>
-        <label className="mb-1.5 block text-xs uppercase tracking-wide text-white/40">
+        <label className="mb-1.5 block text-xs uppercase tracking-wide text-ink/40">
           Resource URL
         </label>
         <div className="flex flex-col gap-2 sm:flex-row">
@@ -88,23 +88,23 @@ export function SriTool() {
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://cdn.example.com/app.js"
             spellCheck={false}
-            className="flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 font-mono text-sm text-white placeholder:text-white/30 outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
+            className="flex-1 rounded-lg border border-ink/10 bg-white px-3 py-2.5 font-mono text-sm text-ink shadow-card placeholder:text-ink/40 outline-none focus:border-ink/40 focus:ring-2 focus:ring-ink/10"
           />
           <button
             onClick={fromUrl}
             disabled={busy}
-            className="rounded-xl bg-primary px-4 py-2.5 font-ui text-sm font-semibold text-black transition hover:bg-primary-dark disabled:opacity-60"
+            className="btn-primary px-4 py-2.5 disabled:opacity-60"
           >
             {busy ? 'Fetching…' : 'Fetch & hash'}
           </button>
         </div>
-        <p className="mt-1.5 text-xs text-white/40">
+        <p className="mt-1.5 text-xs text-ink/40">
           The URL is also used as the tag&apos;s <span className="font-mono">src/href</span>.
         </p>
       </div>
 
       <div>
-        <label className="mb-1.5 block text-xs uppercase tracking-wide text-white/40">
+        <label className="mb-1.5 block text-xs uppercase tracking-wide text-ink/40">
           …or paste file contents
         </label>
         <textarea
@@ -113,18 +113,18 @@ export function SriTool() {
           spellCheck={false}
           rows={4}
           placeholder="Paste the exact JS/CSS file contents…"
-          className="w-full resize-y rounded-xl border border-white/10 bg-white/5 p-3 font-mono text-sm text-white placeholder:text-white/30 outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
+          className="w-full resize-y rounded-xl border border-ink/10 bg-white p-3 font-mono text-sm text-ink placeholder:text-ink/30 outline-none focus:border-primary focus:ring-2 focus:ring-primary/30"
         />
         <button
           onClick={fromContent}
-          className="mt-2 rounded-full border border-white/10 px-4 py-1.5 text-sm text-white/70 transition hover:border-white/30"
+          className="mt-2 rounded-full border border-ink/10 px-4 py-1.5 text-sm text-ink/70 transition hover:border-ink/30"
         >
           Hash pasted contents
         </button>
       </div>
 
       {error && (
-        <p className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+        <p className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-600">
           {error}
         </p>
       )}
@@ -133,19 +133,19 @@ export function SriTool() {
         <div className="space-y-3">
           <div>
             <div className="mb-1.5 flex items-center justify-between">
-              <label className="text-xs uppercase tracking-wide text-white/40">Integrity value</label>
+              <label className="text-xs uppercase tracking-wide text-ink/40">Integrity value</label>
               <CopyButton value={integrity} />
             </div>
-            <p className="break-all rounded-xl border border-white/10 bg-black/40 p-3 font-mono text-xs text-primary">
+            <p className="break-all rounded-xl border border-ink/10 bg-black/5 p-3 font-mono text-xs text-primary">
               {integrity}
             </p>
           </div>
           <div>
             <div className="mb-1.5 flex items-center justify-between">
-              <label className="text-xs uppercase tracking-wide text-white/40">Ready-to-paste tag</label>
+              <label className="text-xs uppercase tracking-wide text-ink/40">Ready-to-paste tag</label>
               <CopyButton value={tag} />
             </div>
-            <pre className="overflow-x-auto rounded-xl border border-white/10 bg-black/40 p-3 text-xs text-white/90">
+            <pre className="overflow-x-auto rounded-xl border border-ink/10 bg-black/5 p-3 text-xs text-ink/90">
               {tag}
             </pre>
           </div>
