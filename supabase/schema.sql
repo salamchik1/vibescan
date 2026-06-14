@@ -48,3 +48,21 @@ create policy "owners update own scans"
   to authenticated
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
+-- ---------------------------------------------------------------------------
+-- scanner_endpoint: a single row (id = 1) that the local scanner agent keeps
+-- up to date with its current public tunnel URL and a heartbeat timestamp.
+-- The Next.js /api/scan route reads this at request time, so a changing
+-- tunnelmole URL is picked up live — no env edit / redeploy needed. A stale
+-- updated_at means the home PC is off, and the site shows "scanner offline".
+-- Only the service-role key (local agent + server route) touches this table;
+-- RLS is on with no public policies, so end-user sessions can't read/write it.
+-- ---------------------------------------------------------------------------
+create table if not exists public.scanner_endpoint (
+  id          int  primary key default 1,
+  url         text not null,
+  updated_at  timestamptz not null default now(),
+  constraint scanner_endpoint_singleton check (id = 1)
+);
+
+alter table public.scanner_endpoint enable row level security;

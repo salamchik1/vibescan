@@ -11,6 +11,7 @@
     "dev:scanner": "npm run dev --workspace @vibescan/scanner",
     "dev:web": "npm run dev --workspace @vibescan/web",
     "start:scanner": "npm run start --workspace @vibescan/scanner",
+    "online": "node tools/scanner-online.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test:ssrf": "npm run test:ssrf --workspace @vibescan/scanner"
   },
