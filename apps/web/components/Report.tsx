@@ -27,17 +27,25 @@ export function Report({
   shareUrl?: string;
 }) {
   const [platform, setPlatform] = useState<Platform>(detectPlatform(result.url));
+  const [showMinor, setShowMinor] = useState(false);
   const verdict = VERDICT_META[result.verdict];
 
-  const { redFindings, yellowFindings, okCategories, liveKeys } = useMemo(() => {
+  const { redFindings, yellowFindings, minorFindings, okCategories, liveKeys } = useMemo(() => {
     const red = result.findings.filter((f) => f.severity === 'critical' || f.severity === 'high');
-    const yellow = result.findings.filter(
-      (f) => f.severity === 'medium' || f.severity === 'low' || f.severity === 'info'
-    );
+    const yellow = result.findings.filter((f) => f.severity === 'medium');
+    // low + info are "nice to know" — kept visible for thoroughness, but collapsed
+    // so they don't drown out what actually needs fixing.
+    const minor = result.findings.filter((f) => f.severity === 'low' || f.severity === 'info');
     const present = new Set(result.findings.map((f) => f.category));
     const ok = ALL_CATEGORIES.filter((c) => !present.has(c));
     const live = result.findings.filter((f) => f.verification?.status === 'active').length;
-    return { redFindings: red, yellowFindings: yellow, okCategories: ok, liveKeys: live };
+    return {
+      redFindings: red,
+      yellowFindings: yellow,
+      minorFindings: minor,
+      okCategories: ok,
+      liveKeys: live,
+    };
   }, [result]);
 
   return (
@@ -55,8 +63,8 @@ export function Report({
           <p className="mt-2 truncate font-mono text-xs text-ink/40">{result.url}</p>
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink/60">
             <span>🔴 {result.counts.critical + result.counts.high} critical/high</span>
-            <span>🟡 {result.counts.medium + result.counts.low} medium/low</span>
-            <span>⚪ {result.counts.info} info</span>
+            <span>🟡 {result.counts.medium} medium</span>
+            <span>🔵 {result.counts.low + result.counts.info} minor</span>
             {liveKeys > 0 && (
               <span className="font-semibold text-red-600">
                 ✅ {liveKeys} live key{liveKeys === 1 ? '' : 's'} confirmed
@@ -134,6 +142,25 @@ export function Report({
           <div className="space-y-3">
             {yellowFindings.map((f, i) => (
               <FindingCard key={`y${i}`} finding={f} platform={platform} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Minor / informational zone — collapsed by default so it doesn't drown
+          out real issues, but kept available (and always printed in the PDF). */}
+      {minorFindings.length > 0 && (
+        <section className="mt-6">
+          <button
+            onClick={() => setShowMinor((v) => !v)}
+            className="flex w-full items-center gap-2 text-sm font-semibold uppercase tracking-wide text-sky-600"
+          >
+            <span className={`transition print:hidden ${showMinor ? 'rotate-90' : ''}`}>▸</span>
+            🔵 Minor / informational ({minorFindings.length})
+          </button>
+          <div className={showMinor ? 'mt-3 space-y-3' : 'hidden print:mt-3 print:block print:space-y-3'}>
+            {minorFindings.map((f, i) => (
+              <FindingCard key={`m${i}`} finding={f} platform={platform} />
             ))}
           </div>
         </section>
