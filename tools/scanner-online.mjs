@@ -37,6 +37,7 @@ if (!SUPABASE_URL || !SERVICE_KEY) {
 let currentUrl = null;     // last tunnel URL we published
 let tunnel = null;         // tunnelmole child process
 let tunnelStartedAt = 0;   // when the current tunnel was (re)opened
+let publicFails = 0;       // consecutive heartbeats the public URL failed to reach us
 
 // ---- main -----------------------------------------------------------------
 log('starting…');
@@ -106,18 +107,51 @@ function openTunnel() {
 
 /** Refresh the heartbeat (and self-heal the scanner / tunnel if needed). */
 async function heartbeat() {
+  // 1. Keep the local scanner alive.
   if (!(await healthy())) {
     log('scanner stopped responding — restarting it…');
     await ensureScanner();
   }
-  if (currentUrl) {
+
+  // 2. Only refresh the heartbeat if the PUBLIC url really reaches the scanner.
+  //    A tunnelmole tunnel can lose its registration while the child process stays
+  //    alive; the URL then serves a "No matching tunnelmole domain" HTML 404, which
+  //    the Vercel site reports as an "unreadable response". Verifying the public url
+  //    (not just localhost) stops us from publishing a dead tunnel as "live".
+  if (currentUrl && (await publicHealthy(currentUrl))) {
+    publicFails = 0;
     await publish(currentUrl);
-  } else if (Date.now() - tunnelStartedAt > 25_000) {
-    // Still no public URL after 25s — usually no internet yet (e.g. Wi-Fi not
-    // connected right after boot). Reopen the tunnel; once the network comes up
-    // a fresh attempt connects within seconds and we publish the new URL.
-    log('no public URL yet (no internet?) — reopening tunnel…');
-    if (tunnel) tunnel.kill(); // the exit handler reopens it after 5s
+    return;
+  }
+
+  // 3. The URL is missing or dead. While the tunnel is still coming up after a
+  //    (re)open, just wait. Tolerate a single transient miss, then reopen to get a
+  //    fresh, working URL. We deliberately stop refreshing updated_at so the site
+  //    goes honestly "offline" rather than "unreadable" while we recover.
+  if (!currentUrl && Date.now() - tunnelStartedAt <= 25_000) return;
+
+  if (currentUrl && ++publicFails < 2) {
+    log(`public URL didn't answer (strike ${publicFails}/2) — will reopen if it misses again.`);
+    return;
+  }
+
+  log(currentUrl
+    ? `public URL ${currentUrl} is dead — reopening tunnel…`
+    : 'no public URL yet (no internet?) — reopening tunnel…');
+  currentUrl = null;
+  publicFails = 0;
+  if (tunnel) tunnel.kill(); // the exit handler reopens it after 5s
+}
+
+/** Does the PUBLIC tunnel URL actually reach our scanner (not a tunnelmole error page)? */
+async function publicHealthy(url) {
+  try {
+    const res = await fetch(`${url.replace(/\/+$/, '')}/health`, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) return false;
+    const data = await res.json().catch(() => null);
+    return !!(data && data.ok === true);
+  } catch {
+    return false;
   }
 }
 
