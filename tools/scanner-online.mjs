@@ -34,8 +34,9 @@ if (!SUPABASE_URL || !SERVICE_KEY) {
   process.exit(1);
 }
 
-let currentUrl = null;   // last tunnel URL we published
-let tunnel = null;       // tunnelmole child process
+let currentUrl = null;     // last tunnel URL we published
+let tunnel = null;         // tunnelmole child process
+let tunnelStartedAt = 0;   // when the current tunnel was (re)opened
 
 // ---- main -----------------------------------------------------------------
 log('starting…');
@@ -76,6 +77,7 @@ async function ensureScanner() {
 /** Spawn tunnelmole, capture its public URL, and republish if it ever restarts. */
 function openTunnel() {
   log('opening public tunnel (tunnelmole)…');
+  tunnelStartedAt = Date.now();
   tunnel = spawn(`npx -y tunnelmole ${PORT}`, {
     cwd: ROOT,
     shell: true,
@@ -102,13 +104,21 @@ function openTunnel() {
   });
 }
 
-/** Refresh the heartbeat (and revive the scanner if it died). */
+/** Refresh the heartbeat (and self-heal the scanner / tunnel if needed). */
 async function heartbeat() {
   if (!(await healthy())) {
     log('scanner stopped responding — restarting it…');
     await ensureScanner();
   }
-  if (currentUrl) await publish(currentUrl);
+  if (currentUrl) {
+    await publish(currentUrl);
+  } else if (Date.now() - tunnelStartedAt > 25_000) {
+    // Still no public URL after 25s — usually no internet yet (e.g. Wi-Fi not
+    // connected right after boot). Reopen the tunnel; once the network comes up
+    // a fresh attempt connects within seconds and we publish the new URL.
+    log('no public URL yet (no internet?) — reopening tunnel…');
+    if (tunnel) tunnel.kill(); // the exit handler reopens it after 5s
+  }
 }
 
 /** Upsert the current URL + a fresh timestamp into Supabase (row id = 1). */
