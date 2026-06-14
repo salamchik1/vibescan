@@ -16,6 +16,19 @@ function secretMatches(provided: string): boolean {
 
 const MAX_CODE_BYTES = 512 * 1024; // pasted-code scans accept larger bodies
 
+// Security response headers applied to every reply. This service is a JSON API
+// that is never meant to be embedded or to load remote resources, so a locked
+// down CSP is safe. Mirrors apps/web/next.config.mjs so the scanner's own
+// backend passes the same OWASP header checks it runs against other sites.
+const SECURITY_HEADERS: Record<string, string> = {
+  'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'",
+  'X-Frame-Options': 'DENY',
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'no-referrer',
+  // Only honored over HTTPS, so harmless on localhost.
+  'Strict-Transport-Security': 'max-age=63072000; includeSubDomains',
+};
+
 const app = Fastify({
   logger: { level: 'info' },
   bodyLimit: MAX_CODE_BYTES + 1024,
@@ -30,6 +43,13 @@ await app.register(cors, {
 await app.register(rateLimit, {
   max: config.rateMax,
   timeWindow: config.rateWindowMs,
+});
+
+// Stamp security headers onto every response (including 404s, errors and
+// rate-limit 429s). onSend runs for all replies before headers are flushed.
+app.addHook('onSend', async (_req, reply, payload) => {
+  reply.headers(SECURITY_HEADERS);
+  return payload;
 });
 
 app.get('/health', async () => ({ ok: true, version: SCANNER_VERSION }));
