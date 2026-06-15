@@ -33,7 +33,7 @@
 
 2. 🟢 **Рынок огромен и быстро растёт.** Вайб-кодинг как сегмент инструментов оценивается в **~$4,7 млрд в 2026 г., +38%/год** (`оценка, один источник` — FindSkill, 2026). У одного только Lovable **~8 млн пользователей** и **100 тыс. новых проектов в день** (конец 2025). **63% вайбкодеров — не разработчики** — это и есть твоя ЦА, которая физически не способна сама закрыть дыры.
 
-3. 🟡 **Ниша уже НЕ пустая — это главный риск.** Прямых конкурентов минимум 6–8: Vibe App Scanner ($9/$19/$99-мес), NotElon AI, VibeEval, vibecodesecure, Safe Vibe Codes, плюс встроенные сканеры самих платформ (Lovable теперь гоняет 4 проверки перед публикацией). «Просто сканер» делать поздно — нужна острая дифференциация.
+3. 🟡 **Ниша уже НЕ пустая — это главный риск.** Прямых и смежных конкурентов **~25** (см. обновлённый раздел 5): Vibe App Scanner ($9/$19/$99-мес), VibeEval (PoC-агент), NotElon, VibeChecker, amihackable, Vouch, AquilaX, ZeriFlow, Vibeship, SupaExplorer, Safe Vibe Codes, плюс встроенные сканеры платформ (Lovable добавил AI-пентест, Supabase авто-отзывает ключи). «Просто сканер» делать поздно — нужна острая дифференциация.
 
 4. 🟢 **Главный шанс — сегмент, который никто не занял толком: агентства и студии.** Почти все конкуренты продают разовый скан фаундеру-одиночке. **Мульти-проектный дашборд + непрерывный мониторинг + white-label для no-code агентств** — это голубой океан внутри красного. Агентство с 30 клиентскими приложениями — это и регулярный платёж, и низкий отток.
 
@@ -122,6 +122,26 @@
 
 > 💡 **Правило продаж в этой нише:** продавай через **эмоцию в бесплатном скане** (показать настоящую открытую дыру → шок), а **удерживай через рацио в подписке** (мониторинг, отчёты, спокойствие). Один без другого не работает.
 
+### 3.3. Карта обсуждений боли (где это горит прямо сейчас)
+
+> Где смотреть живой язык боли, формулировки возражений и реакцию рынка. Используй как источник цитат для лендинга и тредов.
+
+**🟠 Hacker News (самые горячие треды):**
+- [«11% of vibe-coded apps are leaking Supabase keys»](https://news.ycombinator.com/item?id=46662304) — 20 052 URL, 11,04% утечек, 2 325 критических. Цитата: *«a once in a lifetime fuckup, a career defining moment»*. Инсайт: **многие никогда не заходят в дашборд Supabase**, где есть предупреждения → они слепы.
+- [Show HN: Scan vibe coded apps for security vulnerabilities](https://news.ycombinator.com/item?id=46577230) · [Show HN: Vibe Coding Security Scanner and Tester](https://news.ycombinator.com/item?id=44046298) · [Show HN: Vibe Coding Security Hook](https://news.ycombinator.com/item?id=43950563) — конкуренты запускаются прямо тут; в комментах ровно те возражения, что убивают конверсию (ложняки, «это просто regex», «бизнес-логику не ловит»).
+- [«Vibe Coding Is a Security Disaster That Is About to Happen»](https://news.ycombinator.com/item?id=47479724).
+
+**🟣 Indie Hackers (голос твоей ЦА):**
+- [«Vibe coding without a security audit is negligence»](https://www.indiehackers.com/post/vibe-coding-without-a-security-audit-is-negligence-here-is-why-i-think-most-founders-do-not-realize-it-02d84b6d68) — боль сформулирована идеально: *«AI-generated code looks clean… which makes it easier to trust without questioning it»* и *«That gap between what founders think their security posture is and what it actually is, that is the real problem»*. Кейс: финансовый SaaS почти закрыл платящих — и тут нашёл `service_role` ключ в публичном бандле.
+
+**🔵 Reddit / X:** r/vibecoding, r/nocode, r/SaaS, r/Supabase, r/SideProject — паттерн «построил → быстро взломали, потому что не разбираюсь». На X вирусно расходятся разборы **Moltbook** (1,5 млн ключей за 3 дня) и Lovable — это твой формат контента.
+
+**✍️ Substack / личные блоги:** [«Vibe Coding Is Fun Until You Commit Your API Key»](https://juliadiez.substack.com/p/vibe-coding-is-fun-until-you-commit) · [«Vibe Coding Has a Security Problem Nobody Wants to Talk About»](https://mothasa.substack.com/p/vibe-coding-has-a-security-problem) · [«The Vibe-Coded Internet Is a Security Disaster Waiting to Happen»](https://leewoobin.com/posts/vibe-coded-apps-security-disaster-in-the-making/).
+
+**📰 DEV.to (контент-война конкурентов = твой вирусный формат «я просканировал N приложений»):** [«I Tested Every Vibe Coding Security Scanner (2026)»](https://dev.to/solobillions/i-tested-every-vibe-coding-security-scanner-2026-heres-what-actually-works-p9k) · [«I Scanned 100 Vibe-Coded Apps… 318 Vulnerabilities»](https://dev.to/vibewrench/i-scanned-100-vibe-coded-apps-for-security-i-found-318-vulnerabilities-4dp7) · [«Your Vibe Coding Security Scanner Is Missing the Worst Bugs»](https://dev.to/tgoldi/your-vibe-coding-security-scanner-is-missing-the-worst-bugs-heres-why-52na).
+
+**📊 Авторитетные отчёты (топливо страха + пруфы):** [Wiz — риски в 20% приложений](https://www.wiz.io/blog/common-security-risks-in-vibe-coded-apps) · [Escape.tech — 5 600 приложений, 2 000+ дыр, 175 PII](https://escape.tech/state-of-security-of-vibe-coded-apps) · [The Hacker News — «What 2,000 Exposed Vibe-Coded Apps Reveal»](https://thehackernews.com/2026/05/what-2000-exposed-vibe-coded-apps.html) · [SupaExplorer — Insight Report, Jan 2026](https://supaexplorer.com/cybersecurity-insight-report-january-2026). **OWASP** добавил отдельную категорию под vibe coding в Top 10 (2025) — регуляторный сигнал для B2B-продажи агентствам.
+
 ---
 
 ## 4. ЦЕЛЕВАЯ АУДИТОРИЯ И ICP
@@ -158,33 +178,87 @@
 
 ---
 
-## 5. КОНКУРЕНТЫ — ТОП-10 САМЫХ СИЛЬНЫХ
+## 5. КОНКУРЕНТЫ — КАТАЛОГ ~25 ИГРОКОВ
 
-> Разделены на 2 группы: **(A) прямые** — заточены под vibe-кодинг и не-технарей; **(B) «взрослые»** AppSec-инструменты, которые могут зайти сверху. Цены на июнь 2026, проверяй перед решением.
+> ⚠️ Обновлено: июнь 2026 по итогам сквозного ресёрча. Ниша **уже плотная** (~25+ прямых и смежных игроков, каждую неделю выходят новые Show HN). «Просто сканер» делать поздно — это подтверждает вердикт «GO-с-оговорками». Цены проверяй перед решением.
+>
+> **🧭 Легенда осей** (по чему именно конкурент забирает клиентов — см. сводку 5.1):
+> `PoC` — доказательство-эксплойт · `Repo` — скан исходников/репо · `Cont` — непрерывность+бейдж · `Fric` — ноль трения/бренд · `Pre` — профилактика до деплоя · `Depth` — полнота движка/мало ложняков.
+> ⭐ = новый игрок, которого не было в прошлой версии раздела.
 
-### Группа A — прямые конкуренты (та же ниша)
+### Группа A — прямые vibe-сканеры (живой URL, не-технари)
 
-| # | Продукт / ссылка | Кому продают | Ключевые фичи | Цена | Сильные стороны | Слабые / чего НЕ делают | 🔪 Моя щель |
-|---|---|---|---|---|---|---|---|
-| 1 | **Vibe App Scanner** (vibeappscanner.com) | Не-технари, indie | Скан живого URL, 150+ паттернов секретов, fix-инструкции, trust-бейдж, daily-мониторинг | $9 разово / $19 / **$99 мес** | Лучше всех «упакован», есть мониторинг и бейдж, контент-SEO | Заточен на одиночек; нет мульти-проектного/агентского дашборда; не white-label | **Агентства + мульти-проект + white-label** |
-| 2 | **NotElon AI** (notelon.ai) | Solo-фаундеры | Free-скан по GitHub-URL, оценка за секунды, $99 PDF-аудит с fix-промптами | Free + **$99 разово** | Бесплатный вход без регистрации, fix-промпты под Lovable/Cursor | Разовый PDF, нет непрерывности, нет recurring-выручки | **Подписка-мониторинг вместо разового PDF** |
-| 3 | **VibeEval** (vibe-eval.com) | Фаундеры, тех-любители | Free surface-скан; платный «deep agent» (тест RLS, обход auth, авторизация API) | Free + платный (14-дн триал) | Глубокий агентский скан, бренд-контент/бенчмарки | Сложнее для совсем не-технаря; нет агентского угла | **Простота для не-технаря + сегмент агентств** |
-| 4 | **vibecodesecure.com** | Не-технари | Скан vibe-приложений, отчёт | разовый/低 | Нишевый домен, SEO | Тонкий продукт, слабая непрерывность | Глубина + мониторинг + сегмент |
-| 5 | **Safe Vibe Codes** (safevibe.codes) | Не-технари | Фокус на экспозиции БД (открытые базы) | разовый | Чёткий фокус на «открытая база» | Узко (только БД), нет секретов/auth целиком | **Полный охват (секреты+RLS+auth) в одном** |
-| 6 | **VibeSecurity** (github: abenstirling/VibeSecurity) | Тех-грамотные | Open-source CLI-сканер | бесплатно (OSS) | Бесплатно, прозрачно | Нужен CLI = не для не-технаря; нет SaaS/UI/мониторинга | **Готовый SaaS вместо «поставь CLI»** |
-| 7 | **Встроенные сканеры платформ** (Lovable 4-в-1, Supabase RLS-варнинги) | Свои юзеры | RLS-анализ, схема БД, аудит зависимостей перед публикацией | бесплатно (внутри) | Бесплатно, в потоке сборки | Только своя платформа; не независимы; не покрывают весь стек | **Независимость + кросс-платформенность + история во времени** |
+| # | Продукт / ссылка | Цена | 🧲 Чем забирает клиентов | 🧭 Ось | 🔪 Твоя щель |
+|---|---|---|---|---|---|
+| 1 | **Vibe App Scanner** (vibeappscanner.com) | $9 / $19 / **$99 мес** | SEO-машина (десятки страниц ранжируются по твоим запросам), 150+ паттернов, RLS+Firebase+заголовки, **daily-мониторинг + trust-бейдж**, fix-лист в markdown для ИИ | `Cont` `Fric` | Агентский дашборд + white-label + верификация живого ключа |
+| 2 | **VibeEval** (vibe-eval.com) | Free + **$19/мес unlimited** | **Агент реально атакует и показывает PoC** (auth bypass / IDOR / RLS / SSRF), multi-user authorization testing, мониторинг за подписку, не за скан | `PoC` `Cont` | Простота для не-технаря + агентский угол |
+| 3 | ⭐ **VibeChecker** (usevibechecker.com) | Free + paid | **Chrome-расширение ловит дыры в реальном времени, ПОКА генерится код**; local-only обработка («ничего не храним») | `Pre` `Fric` | Пост-деплой портфельный мониторинг |
+| 4 | ⭐ **amihackable.dev** | Free | **Абсолютный ноль трения:** мгновенно, без аккаунта, скан URL за ~10 сек | `Fric` | Глубина + непрерывность + сегмент агентств |
+| 5 | **Safe Vibe Codes** (safevibe.codes) | Free / разовый | «найти → починить → **мониторить**» для Supabase/Lovable/Bolt/Base44; непрерывность уже в оффере | `Cont` | Полный охват (секреты+RLS+auth) + агентство |
+| 6 | ⭐ **Vouch** (vouch-secure.com) | Free + paid | Статика + ИИ-агенты = **«Deep Security Analysis» за 300 сек**, явно «для solo founders & indie hackers» (бьёт в твою ЦА) | `PoC` `Depth` | Агентский мульти-проект |
+| 7 | ⭐ **AquilaX** (aquilax.ai/vibe) | Free / $19 / $99 (безлимит) | **32 параллельных сканера** + режим «Vibe Code», «убирает 93% ложняков» + **авто-фикс PR** — взрослый продукт по цене indie | `Depth` `Repo` | Простота для не-технаря + URL-only без репо |
+| 8 | ⭐ **ZeriFlow** (zeriflow.com) | Free / paid | **80+ проверок в 12 категориях** (TLS, DNS, cookies, email-auth, приватность…) за 60 сек | `Depth` `Fric` | Глубина по Supabase/auth + агентство |
+| 9 | **Vibe Code Secure** (vibecodesecure.com) | разовый / низкий | **Точное доменное имя = SEO-захват** «secure my vibe code» (бьёт позицией, не фичами) | `Fric` | Глубина + мониторинг |
 
-### Группа B — «взрослые» AppSec-инструменты (зайдут сверху)
+### Группа B — ⭐ сканеры исходников / репо (то, чего URL-скан структурно не видит)
 
-| # | Продукт / ссылка | Кому продают | Ключевые фичи | Цена | Сильные стороны | Слабые для НАШЕЙ ЦА | 🔪 Моя щель |
-|---|---|---|---|---|---|---|---|
-| 8 | **Aikido** (aikido.dev) | Дев-команды, стартапы | SAST+SCA+секреты+IaC+DAST, all-in-one | Free (2 юзера/10 репо) / **от $300/мес** | Мощный, выгодный для команд, flat-rate | Для разработчиков, термины, нужен репозиторий/CI — не-технарь утонет | **«Человеческий язык» + URL-скан без кода** |
-| 9 | **Snyk** (snyk.io) | Девы, CI/CD | SAST/SCA/секреты, IDE-интеграции | от **$25/мес** | Бренд, экосистема | Сделан для девов; не объясняет «по-человечески»; не про vibe-стек | Перевод «дев → не-технарь» |
-| 10 | **GitGuardian / TruffleHog / Gitleaks** | Девы, безопасники | Детект секретов (regex+энтропия, верификация) | Free OSS → enterprise | Лучшие в детекте секретов, open-source движки | Голые движки/энтерпрайз; нет UX для не-технаря, нет RLS/auth-логики vibe-приложений | **Я их использую ВНУТРИ как движок, а сверху — UX и логика для не-технаря** |
+| # | Продукт / ссылка | Цена | 🧲 Чем забирает клиентов | 🧭 Ось | 🔪 Твоя щель |
+|---|---|---|---|---|---|
+| 10 | **VibeCheck / NotElon** (notelon.ai) | Free + **$99 PDF** | **Сканит И GitHub-репо, И живой URL** из одного места; без регистрации; fix-промпты под Lovable/Cursor; shareable-бейджи | `Repo` `Fric` | Подписка-мониторинг + агентство |
+| 11 | ⭐ **Vibeship Scanner** (scanner.vibeship.co) | Free | Скан GitHub-репо, **3 500+ паттернов**, 16 сканеров (Opengrep+Trivy+Gitleaks+npm audit), **MCP — вызов прямо из Claude** | `Repo` `Pre` | URL-скан живого сайта + агентство |
+| 12 | ⭐ **SupaExplorer** (supaexplorer.com) | Free | **Supabase OAuth + Chrome-ext читают реальный конфиг проекта** (не угадывают по JS), генерят copy-paste SQL фикс; свой отраслевой отчёт | `Repo` `Depth` | Кросс-платформенность (не только Supabase) + агентство |
+| 13 | ⭐ **ChakraView** (github: nicholasgriffintn/chakraview) | OSS CLI | Глубокий локальный анализ, прозрачно, для не доверяющих облаку | `Repo` | Готовый SaaS вместо CLI |
+| 14 | **VibeSecurity** (github: abenstirling) | OSS CLI | Бесплатно, прозрачно, «который реально работает» | `Repo` | Готовый SaaS для не-технаря |
+| 15 | ⭐ **Scanbee** | — | «No-frills» сканер для AI-era builders — минимум болтовни в отчёте | `Fric` | Глубина + сегмент |
+| 16 | ⭐ **securityscanner.dev** | — | Сканер + регулярные отчёты «State of Vibe-Coded Security» = бренд через данные (как GitGuardian) | `Cont` | Агентский угол |
 
-> 🧠 Важно: пункт 10 — это **не только конкуренты, но и твои стройматериалы**. Ты не пишешь детектор секретов с нуля — ты берёшь gitleaks/trufflehog как движок и строишь поверх продукт.
+### Группа C — ⭐ ручной аудит / пентест для vibe-приложений (забирают «дорогих» сверху)
 
-### 5.1. Незанятая ниша (где именно зазор)
+| # | Продукт / ссылка | Цена | 🧲 Чем забирает клиентов | 🧭 Ось | 🔪 Твоя щель |
+|---|---|---|---|---|---|
+| 17 | ⭐ **Sherlock Forensics** (sherlockforensics.com) | **от $1 500** | **Живой пентест людьми** (auth, API, payments, admin) для Cursor/Bolt/Lovable/Replit — тестируют бизнес-логику и платежи | `PoC` | Дешёвый непрерывный софт vs дорогой разовый аудит |
+| 18 | ⭐ **symbioticsec.ai** | — | «Lovable vulnerability scanner» с глубоким анализом + экспертный бренд/контент | `Depth` `PoC` | Кросс-платформенность + агентство |
+
+### Группа D — «взрослые» AppSec-платформы (зайдут сверху)
+
+| # | Продукт / ссылка | Цена | 🧲 Чем забирает клиентов | 🧭 Ось | 🔪 Твоя щель |
+|---|---|---|---|---|---|
+| 19 | **Aikido** (aikido.dev) | Free / ~**$314/мес** | Весь стек в одном (SAST+SCA+Secrets+IaC+DAST+Cloud), «одна платформа на всё» — фаундер вырастает и уходит | `Depth` `Repo` | «Человеческий язык» + URL-скан без кода |
+| 20 | **Snyk** (snyk.io) | от **$25/dev** | **Бренд + экосистема:** IDE/CI, авто-фикс PR, лучшая база уязвимостей зависимостей | `Repo` `Fric` | Перевод «дев → не-технарь» |
+| 21 | **GitGuardian** (gitguardian.com) | Free OSS → ent. | **Золотой стандарт по секретам + непрерывный GitHub-мониторинг** (State of Secrets Sprawl 2026: 28,65 млн) | `Cont` `Repo` | Беру их движок ВНУТРЬ; сверху UX + RLS/auth-логика |
+| 22 | ⭐ **Semgrep / SonarQube / GitHub Adv. Security (CodeQL)** | OSS → $40 / $150 / $49 | Глубокий SAST, кастомные правила, нативно в GitHub (ноль setup, бесплатно для публичных репо) | `Repo` `Pre` | Не лезу в CI; беру не-технаря и живой сайт |
+| 23 | ⭐ **Escape.tech / Invicti / Burp** | enterprise | DAST/API/пентест; Escape просканировал **5 600 vibe-приложений** (мощный PR + данные) | `PoC` `Depth` | Не-технарь + цена + vibe-стек |
+
+### Группа E — встроенные сканеры платформ (бесплатно, ноль трения, в потоке сборки)
+
+| # | Продукт / ссылка | Цена | 🧲 Чем забирает клиентов | 🧭 Ось | 🔪 Твоя щель |
+|---|---|---|---|---|---|
+| 24 | **Lovable 2.0** (lovable.dev) | бесплатно (внутри) | Basic + Deep scan перед публикацией; **в апр. 2026 добавили AI-пентест** — прямой удар по внешним сканерам | `Pre` `Fric` | Независимость + кросс-платформа + история во времени + агентский портфель |
+| 25 | **Supabase** (supabase.com) | бесплатно (внутри) | RLS-линты, **ИИ-генерация политик**, **авто-отзыв ключей при утечке в GitHub**, предупреждения в дашборде | `Pre` `Cont` | Кросс-платформа + независимый аудит |
+
+> 🧠 Важно: GitGuardian/TruffleHog/Gitleaks/Trivy/Opengrep — это **не только конкуренты, но и твои стройматериалы**. Детектор секретов с нуля не пишешь — берёшь их как движок и строишь поверх UX и логику для не-технаря.
+> ⚠️ Платформы (Lovable, Supabase) **съедают «лёгкие» проверки**: Lovable встроил AI-пентест, Supabase авто-отзывает ключи. Защита от этого ровно та, что в 5.1: кросс-платформенность + история во времени + независимость + агентский портфель.
+
+### 5.1. По каким осям уходят клиенты (сводка)
+
+Если убрать «сайт ещё не доделан», все преимущества конкурентов сводятся к **6 повторяющимся осям**. Почти каждый из топа закрывает хотя бы одну, а ты пока отстаёшь по первым двум:
+
+| 🧭 Ось | Чего у тебя нет | Кто этим забирает клиентов |
+|---|---|---|
+| **PoC** — доказательство-эксплойт | «красный значок» вместо «вот твои данные» | VibeEval, Vouch, Sherlock, Escape, symbioticsec |
+| **Repo** — скан исходников / репо / OAuth | только URL — дыры в коде не видны | NotElon, Vibeship, SupaExplorer, ChakraView, AquilaX, Snyk, Semgrep, Sonar, CodeQL, Aikido |
+| **Cont** — непрерывность + бейдж | разовый снимок | Vibe App Scanner, Safe Vibe Codes, GitGuardian, securityscanner.dev, Supabase |
+| **Fric** — ноль трения / бренд | барьер входа / неизвестность | amihackable, NotElon, VibeChecker, Vibe Code Secure, Snyk, Aikido |
+| **Pre** — профилактика до деплоя | только постфактум | VibeChecker, Vibeship (MCP), Lovable, Supabase, CodeQL |
+| **Depth** — полнота движка / мало ложняков | 4 категории | AquilaX, ZeriFlow, Aikido, Escape |
+
+**Самый дешёвый способ догнать по двум слабым осям:**
+- `PoC` ← твоя **проверка «живой ли ключ»** (read-only вызов к Stripe/OpenAI/Anthropic/GitHub) — ближайшее к доказательству; разверни как фичу №1.
+- `Repo` ← опциональный **GitHub-OAuth скан во v2** (минимальный read-only scope) поверх URL-скана.
+
+**Где у тебя уже козырь (держи и усиливай):** проверка живого ключа · enumerate схемы Supabase + публичные Storage-бакеты в один проход · агентский мульти-проектный мониторинг + верификация починки + white-label (этого толком нет ни у кого).
+
+### 5.2. Незанятая ниша (где именно зазор)
 
 Сводя всё вместе, свободны **четыре стыка одновременно**, и почти никто не закрывает их вместе:
 
@@ -627,10 +701,33 @@
 - [Vibe Code Secure](https://vibecodesecure.com/) `вендор`
 - [Safe Vibe Codes](https://safevibe.codes/) `вендор`
 - [VibeSecurity (open-source) — GitHub](https://github.com/abenstirling/VibeSecurity)
+- [VibeChecker (Chrome-расширение)](https://usevibechecker.com/) `вендор` ⭐
+- [amihackable.dev](https://amihackable.dev) `вендор` ⭐
+- [Vouch — AI & Vibe Code Security Scanner](https://www.vouch-secure.com/) `вендор` ⭐
+- [AquilaX — Vibe Code Scanner / Pricing](https://aquilax.ai/vibe) — free / $19 / $99 `вендор` ⭐
+- [ZeriFlow — best scanner for vibe coders](https://zeriflow.com/blog/best-security-scanner-vibe-coders) `вендор` ⭐
+- [Vibeship Scanner (GitHub-репо скан, MCP)](https://scanner.vibeship.co/) — [github](https://github.com/vibeforge1111/vibeship-scanner) ⭐
+- [ChakraView (OSS CLI) — GitHub](https://github.com/nicholasgriffintn/chakraview) ⭐
+- [SupaExplorer — Supabase OAuth аудит](https://supaexplorer.com/) `вендор` ⭐
+- [securityscanner.dev — State of Vibe-Coded Security Q2 2026](https://securityscanner.dev/reports/2026-q2) ⭐
+- [Sherlock Forensics — vibe-code пентест от $1500](https://www.sherlockforensics.com/pages/vibe-code-pentest.html) `вендор` ⭐
+- [symbioticsec.ai — Lovable vulnerability scanner](https://www.symbioticsec.ai/blog/lovable-vulnerability-scanner) `вендор` ⭐
+- [Escape.tech — State of Security of Vibe Coded Apps (5.6k приложений)](https://escape.tech/state-of-security-of-vibe-coded-apps) ⭐
+- [Lovable Just Added AI Pentesting — dev.to](https://dev.to/solobillions/lovable-just-added-ai-pentesting-heres-what-it-means-for-every-other-vibe-coder-27ka) ⭐
+- [6 AI Code Security Tools Compared — vibeappscanner](https://vibeappscanner.com/ai-code-security-tools) `вендор`
 - [I Tested Every Vibe Coding Security Scanner (2026) — dev.to](https://dev.to/solobillions/i-tested-every-vibe-coding-security-scanner-2026-heres-what-actually-works-p9k)
 - [Aikido Pricing](https://www.aikido.dev/pricing) — free / от $300/мес `вендор`
 - [Snyk Plans & Pricing](https://snyk.io/plans/) — от $25/мес `вендор`
 - [Secret Scanning Tools 2026 — GitGuardian](https://blog.gitguardian.com/secret-scanning-tools/) `вендор`
+
+**Обсуждения боли / комьюнити (см. раздел 3.3):**
+- [HN: 11% of vibe-coded apps are leaking Supabase keys](https://news.ycombinator.com/item?id=46662304)
+- [HN: Show HN — Scan vibe coded apps for security vulnerabilities](https://news.ycombinator.com/item?id=46577230)
+- [Indie Hackers: Vibe coding without a security audit is negligence](https://www.indiehackers.com/post/vibe-coding-without-a-security-audit-is-negligence-here-is-why-i-think-most-founders-do-not-realize-it-02d84b6d68)
+- [dev.to: Your Vibe Coding Security Scanner Is Missing the Worst Bugs](https://dev.to/tgoldi/your-vibe-coding-security-scanner-is-missing-the-worst-bugs-heres-why-52na)
+- [The Hacker News: What 2,000 Exposed Vibe-Coded Apps Reveal](https://thehackernews.com/2026/05/what-2000-exposed-vibe-coded-apps.html)
+- [SupaExplorer: Cybersecurity Insight Report, Jan 2026](https://supaexplorer.com/cybersecurity-insight-report-january-2026)
+- [Substack: Vibe Coding Is Fun Until You Commit Your API Key](https://juliadiez.substack.com/p/vibe-coding-is-fun-until-you-commit)
 
 **Техническая часть:**
 - [TruffleHog vs Gitleaks — Jit](https://www.jit.io/resources/appsec-tools/trufflehog-vs-gitleaks-a-detailed-comparison-of-secret-scanning-tools)
