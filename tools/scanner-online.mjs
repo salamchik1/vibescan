@@ -4,7 +4,8 @@
 // What it does, in a loop:
 //   1. Make sure the scanner is up on localhost:PORT (reuse it if already running,
 //      otherwise start it).
-//   2. Open a public tunnel (tunnelmole) and capture its https URL.
+//   2. Open a public tunnel (Cloudflare quick tunnel by default) and capture its
+//      https URL.
 //   3. Publish that URL to Supabase (table scanner_endpoint, row id=1) and refresh
 //      a heartbeat every 30s. The Vercel /api/scan route reads this row at request
 //      time, so a changing tunnel URL is picked up live — no env edit, no redeploy.
@@ -13,7 +14,7 @@
 // Run it via: npm run online   (or the Сканер-онлайн launchers in the repo root).
 
 import { spawn } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
@@ -27,6 +28,53 @@ const SUPABASE_URL = (env.NEXT_PUBLIC_SUPABASE_URL || '').trim().replace(/\/+$/,
 const SERVICE_KEY = (env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
 const HEALTH_URL = `http://localhost:${PORT}/health`;
 const HEARTBEAT_MS = 30_000;
+
+// ---- tunnel provider ------------------------------------------------------
+// tunnelmole's free service is unreliable: it often connects at the TCP level
+// but never emits a public URL, so the agent looped "no public URL → reopen"
+// forever and the site stayed "offline". Default to Cloudflare's quick tunnel
+// instead — free, no account, reliable, and it serves our JSON straight through
+// (no interstitial warning page like loca.lt). Override with TUNNEL_PROVIDER
+// (cloudflared | tunnelmole | localtunnel) in the repo-root .env.
+const PROVIDER = (env.TUNNEL_PROVIDER || 'cloudflared').trim().toLowerCase();
+const CF_PROTOCOL = (env.CLOUDFLARED_PROTOCOL || 'http2').trim().toLowerCase();
+
+/** Locate the cloudflared binary: explicit env path, common install dir, or PATH. */
+function cloudflaredBin() {
+  const candidates = [
+    env.CLOUDFLARED_PATH,
+    'C:\\Program Files (x86)\\cloudflared\\cloudflared.exe',
+    'C:\\Program Files\\cloudflared\\cloudflared.exe',
+  ].filter(Boolean);
+  for (const c of candidates) {
+    if (existsSync(c)) return `"${c}"`;
+  }
+  return 'cloudflared'; // assume it's on PATH
+}
+
+const PROVIDERS = {
+  cloudflared: {
+    label: 'Cloudflare quick tunnel',
+    urlRe: /https:\/\/[a-z0-9-]+\.trycloudflare\.com/i,
+    // --protocol http2 forces the edge connection over TCP 7844 instead of QUIC.
+    // Many networks (incl. this one) block outbound UDP, so QUIC never connects
+    // and the tunnel stays dead; TCP 7844 is reachable, so http2 is the reliable
+    // default. Override via CLOUDFLARED_PROTOCOL=auto to let cloudflared pick QUIC.
+    command: () =>
+      `${cloudflaredBin()} tunnel --url http://localhost:${PORT} --no-autoupdate --protocol ${CF_PROTOCOL}`,
+  },
+  tunnelmole: {
+    label: 'tunnelmole',
+    urlRe: /https:\/\/[a-z0-9-]+\.tunnelmole\.net/i,
+    command: () => `npx -y tunnelmole ${PORT}`,
+  },
+  localtunnel: {
+    label: 'localtunnel',
+    urlRe: /https:\/\/[a-z0-9-]+\.loca\.lt/i,
+    command: () => `npx -y localtunnel --port ${PORT}`,
+  },
+};
+const TUNNEL = PROVIDERS[PROVIDER] || PROVIDERS.cloudflared;
 
 if (!SUPABASE_URL || !SERVICE_KEY) {
   console.error('[online] .env is missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.');
@@ -75,11 +123,11 @@ async function ensureScanner() {
   process.exit(1);
 }
 
-/** Spawn tunnelmole, capture its public URL, and republish if it ever restarts. */
+/** Spawn the tunnel client, capture its public URL, and republish if it restarts. */
 function openTunnel() {
-  log('opening public tunnel (tunnelmole)…');
+  log(`opening public tunnel (${TUNNEL.label})…`);
   tunnelStartedAt = Date.now();
-  tunnel = spawn(`npx -y tunnelmole ${PORT}`, {
+  tunnel = spawn(TUNNEL.command(), {
     cwd: ROOT,
     shell: true,
     windowsHide: true,
@@ -87,8 +135,8 @@ function openTunnel() {
 
   const onData = (buf) => {
     const text = buf.toString();
-    process.stdout.write(text); // mirror tunnelmole output so the window shows it
-    const m = text.match(/https:\/\/[a-z0-9-]+\.tunnelmole\.net/i);
+    process.stdout.write(text); // mirror tunnel output so the window shows it
+    const m = text.match(TUNNEL.urlRe);
     if (m && m[0] !== currentUrl) {
       currentUrl = m[0];
       log(`public URL: ${currentUrl}`);
@@ -114,10 +162,10 @@ async function heartbeat() {
   }
 
   // 2. Only refresh the heartbeat if the PUBLIC url really reaches the scanner.
-  //    A tunnelmole tunnel can lose its registration while the child process stays
-  //    alive; the URL then serves a "No matching tunnelmole domain" HTML 404, which
-  //    the Vercel site reports as an "unreadable response". Verifying the public url
-  //    (not just localhost) stops us from publishing a dead tunnel as "live".
+  //    A tunnel can lose its registration while the child process stays alive; the
+  //    URL then serves a provider error page (HTML, not our JSON), which the Vercel
+  //    site reports as an "unreadable response". Verifying the public url (not just
+  //    localhost) stops us from publishing a dead tunnel as "live".
   if (currentUrl && (await publicHealthy(currentUrl))) {
     publicFails = 0;
     await publish(currentUrl);
@@ -146,7 +194,11 @@ async function heartbeat() {
 /** Does the PUBLIC tunnel URL actually reach our scanner (not a tunnelmole error page)? */
 async function publicHealthy(url) {
   try {
-    const res = await fetch(`${url.replace(/\/+$/, '')}/health`, { signal: AbortSignal.timeout(8000) });
+    const res = await fetch(`${url.replace(/\/+$/, '')}/health`, {
+      // Bypass localtunnel's reminder page (harmless for other providers).
+      headers: { 'bypass-tunnel-reminder': '1' },
+      signal: AbortSignal.timeout(8000),
+    });
     if (!res.ok) return false;
     const data = await res.json().catch(() => null);
     return !!(data && data.ok === true);

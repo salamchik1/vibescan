@@ -70,7 +70,14 @@ export async function POST(req: Request) {
   try {
     const res = await fetch(`${scanner.url.replace(/\/+$/, '')}/scan`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-scan-secret': SCANNER_SECRET },
+      headers: {
+        'content-type': 'application/json',
+        'x-scan-secret': SCANNER_SECRET,
+        // Skip localtunnel's (loca.lt) browser reminder page so a cross-IP request
+        // from Vercel gets the scanner's JSON, not the interstitial HTML. Harmless
+        // for other tunnel providers, which ignore the unknown header.
+        'bypass-tunnel-reminder': '1',
+      },
       body: JSON.stringify(payload),
       // Give the scanner room to finish (Playwright + probes).
       signal: AbortSignal.timeout(90_000),
