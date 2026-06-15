@@ -10,7 +10,14 @@ import type {
 } from './types';
 
 /** All categories, in the order we present them on the report. */
-export const ALL_CATEGORIES: Category[] = ['secrets', 'database', 'auth', 'owasp'];
+export const ALL_CATEGORIES: Category[] = [
+  'secrets',
+  'database',
+  'auth',
+  'owasp',
+  'code',
+  'dependencies',
+];
 
 /** Points subtracted from a perfect 100 per finding, by severity. Tune on real scans. */
 export const SEVERITY_WEIGHTS: Record<Severity, number> = {

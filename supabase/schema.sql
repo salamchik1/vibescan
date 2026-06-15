@@ -66,3 +66,42 @@ create table if not exists public.scanner_endpoint (
 );
 
 alter table public.scanner_endpoint enable row level security;
+
+-- ---------------------------------------------------------------------------
+-- repo_scan_jobs: one row per asynchronous repository (source-code) scan.
+-- Repo scans (git clone + Semgrep + OSV + gitleaks) take minutes, so unlike the
+-- synchronous URL/code scans they run as a job: the scanner inserts a 'queued'
+-- row, transitions it as it clones/scans, and on success writes the finished
+-- scan into public.scans and links it via scan_id. The web app polls this table
+-- directly (service role), so polling survives a scanner restart or a rotated
+-- tunnel URL and never depends on the scanner's in-memory state.
+-- ---------------------------------------------------------------------------
+create table if not exists public.repo_scan_jobs (
+  id          uuid primary key default gen_random_uuid(),
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
+  user_id     uuid references auth.users (id) on delete set null,
+  repo_url    text not null,
+  status      text not null default 'queued'
+                check (status in ('queued','cloning','scanning','done','failed')),
+  -- Set when status='done': the public.scans row holding the full ScanResult.
+  scan_id     uuid references public.scans (id) on delete set null,
+  -- Safe, non-leaky message when status='failed'.
+  error       text
+);
+
+create index if not exists repo_scan_jobs_status_created_idx
+  on public.repo_scan_jobs (status, created_at desc);
+create index if not exists repo_scan_jobs_user_id_created_at_idx
+  on public.repo_scan_jobs (user_id, created_at desc);
+
+-- Inserts/updates and anonymous-job polling go through the service-role key
+-- (RLS-bypassing), exactly like public.scans. The one end-user policy lets a
+-- signed-in user read their own jobs if we ever poll client-side.
+alter table public.repo_scan_jobs enable row level security;
+
+drop policy if exists "owners read own repo jobs" on public.repo_scan_jobs;
+create policy "owners read own repo jobs"
+  on public.repo_scan_jobs for select
+  to authenticated
+  using (auth.uid() = user_id);

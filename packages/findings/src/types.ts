@@ -3,7 +3,7 @@
 
 export type Severity = 'critical' | 'high' | 'medium' | 'low' | 'info';
 
-export type Category = 'secrets' | 'database' | 'auth' | 'owasp';
+export type Category = 'secrets' | 'database' | 'auth' | 'owasp' | 'code' | 'dependencies';
 
 /**
  * Vibe-coding platforms we tailor fix prompts for. `generic` is the
@@ -20,8 +20,9 @@ export type Platform =
 
 export type Verdict = 'red' | 'yellow' | 'green';
 
-/** How a scan was started: against a live URL, or against pasted source code. */
-export type ScanMode = 'url' | 'code';
+/** How a scan was started: against a live URL, against pasted source code, or
+ *  against a cloned public Git repository. */
+export type ScanMode = 'url' | 'code' | 'repo';
 
 /** Letter grade, A (best) through F (worst). */
 export type Grade = 'A' | 'B' | 'C' | 'D' | 'F';
@@ -71,7 +72,11 @@ export type FindingType =
   | 'exposed_backup'
   | 'exposed_config_file'
   | 'exposed_sourcemap'
-  | 'clickjacking';
+  | 'clickjacking'
+  // Repository (source-code) scan finding types. `secret_exposed` is reused for
+  // secrets found in git history; these two are new to the repo scan.
+  | 'sast_finding'
+  | 'vulnerable_dependency';
 
 /**
  * Result of a live, read-only check against the provider that issued a secret.

@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 
-export type ScanInput = { url: string } | { code: string };
+export type ScanInput = { url: string } | { code: string } | { repoUrl: string };
 
-type Mode = 'url' | 'code';
+type Mode = 'url' | 'code' | 'repo';
 
 export function ScanForm({
   onScan,
@@ -16,7 +16,9 @@ export function ScanForm({
   const [mode, setMode] = useState<Mode>('url');
   const [url, setUrl] = useState('');
   const [code, setCode] = useState('');
+  const [repoUrl, setRepoUrl] = useState('');
   const [agreed, setAgreed] = useState(false);
+  const [repoAgreed, setRepoAgreed] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function submit(e: React.FormEvent) {
@@ -29,6 +31,24 @@ export function ScanForm({
         return;
       }
       onScan({ code });
+      return;
+    }
+
+    if (mode === 'repo') {
+      const repo = repoUrl.trim();
+      if (!repo) {
+        setError('Enter a public repository URL (e.g. https://github.com/owner/repo).');
+        return;
+      }
+      if (!/^https:\/\/(github\.com|gitlab\.com|bitbucket\.org)\//i.test(repo)) {
+        setError('Enter an https URL on GitHub, GitLab, or Bitbucket.');
+        return;
+      }
+      if (!repoAgreed) {
+        setError('Please confirm this is a public repository you may scan.');
+        return;
+      }
+      onScan({ repoUrl: repo });
       return;
     }
 
@@ -50,6 +70,7 @@ export function ScanForm({
         {(
           [
             { id: 'url', label: 'Scan a URL' },
+            { id: 'repo', label: 'Scan a repo' },
             { id: 'code', label: 'Paste code' },
           ] as { id: Mode; label: string }[]
         ).map((t) => (
@@ -70,7 +91,7 @@ export function ScanForm({
         ))}
       </div>
 
-      {mode === 'url' ? (
+      {mode === 'url' && (
         <>
           <div className="flex flex-col gap-3 sm:flex-row">
             <input
@@ -108,7 +129,51 @@ export function ScanForm({
             We scan only the public page. We never ask for your code or store your keys.
           </p>
         </>
-      ) : (
+      )}
+
+      {mode === 'repo' && (
+        <>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <input
+              type="text"
+              inputMode="url"
+              autoComplete="off"
+              placeholder="https://github.com/owner/repo"
+              value={repoUrl}
+              onChange={(e) => setRepoUrl(e.target.value)}
+              disabled={disabled}
+              className="flex-1 rounded-lg border border-ink/10 bg-white px-5 py-3 text-base text-ink shadow-card placeholder:text-ink/40 outline-none focus:border-ink/40 focus:ring-2 focus:ring-ink/10 disabled:opacity-60"
+            />
+            <button
+              type="submit"
+              disabled={disabled}
+              className="btn-primary px-6 py-3 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {disabled ? 'Scanning…' : 'Scan repo'}
+            </button>
+          </div>
+
+          <label className="mt-3 flex items-start gap-2 text-sm text-ink/60">
+            <input
+              type="checkbox"
+              checked={repoAgreed}
+              onChange={(e) => setRepoAgreed(e.target.checked)}
+              disabled={disabled}
+              className="mt-0.5 h-4 w-4 rounded border-ink/20 bg-black/5 accent-primary"
+            />
+            <span>This is a public repository I own or have permission to scan.</span>
+          </label>
+
+          {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+          <p className="mt-2 text-xs text-ink/40">
+            We clone the public repo and run Semgrep (code analysis), dependency CVE checks, and a
+            full git-history secret scan. Public GitHub, GitLab and Bitbucket only. This can take a
+            minute or two.
+          </p>
+        </>
+      )}
+
+      {mode === 'code' && (
         <>
           <textarea
             value={code}

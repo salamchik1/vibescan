@@ -29,6 +29,28 @@ export const config = {
   useGitleaks: process.env.SCANNER_USE_GITLEAKS === '1',
   // Read-only liveness checks on detected secrets. On by default; set SCANNER_VERIFY_SECRETS=0 to disable.
   verifySecrets: process.env.SCANNER_VERIFY_SECRETS !== '0',
+
+  // --- Repository (source-code) scanning ---------------------------------
+  // Master gate for the async repo-scan pipeline (clone + Semgrep + OSV +
+  // gitleaks-history). Off by default so a slim deploy without git/semgrep is
+  // still valid. Requires git (always) and, for SAST, semgrep on PATH.
+  useRepoScan: process.env.SCANNER_USE_REPO_SCAN === '1',
+  // Run Semgrep SAST during a repo scan. Independent of useRepoScan so an
+  // operator can ship repo scanning with only OSV + gitleaks if semgrep is absent.
+  useSemgrep: process.env.SCANNER_USE_SEMGREP === '1',
+  // Hard budget for `git clone` alone (ms).
+  repoCloneTimeoutMs: num('SCANNER_REPO_CLONE_TIMEOUT_MS', 120_000),
+  // Hard budget for the whole repo scan (clone + all engines), separate from the
+  // synchronous URL/code timeoutMs above.
+  repoScanTimeoutMs: num('SCANNER_REPO_SCAN_TIMEOUT_MS', 240_000),
+  // Abort + clean up if the cloned working tree exceeds these caps.
+  repoMaxSizeMb: num('SCANNER_REPO_MAX_SIZE_MB', 200),
+  repoMaxFiles: num('SCANNER_REPO_MAX_FILES', 20_000),
+  // Skip individual files larger than this when handing paths to SAST/OSV.
+  repoMaxFileBytes: num('SCANNER_REPO_MAX_FILE_BYTES', 2_000_000),
+  // Pinned Semgrep ruleset. A registry pack (e.g. p/owasp-top-ten, p/default)
+  // is reproducible; `auto` is not. Override with SCANNER_SEMGREP_CONFIG.
+  semgrepConfig: process.env.SCANNER_SEMGREP_CONFIG?.trim() || 'p/owasp-top-ten',
 };
 
 export const SCANNER_VERSION = '0.3.0';

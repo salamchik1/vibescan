@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { Category, Platform, ScanResult } from '@vibescan/findings';
+import { ALL_CATEGORIES, type Category, type Platform, type ScanResult } from '@vibescan/findings';
 import {
   CATEGORY_LABEL,
   CATEGORY_OK,
@@ -13,7 +13,15 @@ import {
 import { ScoreGauge } from './ScoreGauge';
 import { FindingCard } from './FindingCard';
 
-const ALL_CATEGORIES: Category[] = ['secrets', 'database', 'auth', 'owasp'];
+// Which categories each scan mode can actually assess. Used to scope the
+// category-grade cards / "Looks OK" list so a URL scan doesn't show always-"A"
+// code/dependency cards (those need a repo scan), and vice-versa. Categories
+// that unexpectedly carry findings are always shown regardless of mode.
+const CATEGORIES_BY_MODE: Record<NonNullable<ScanResult['mode']>, Category[]> = {
+  url: ['secrets', 'database', 'auth', 'owasp'],
+  code: ['secrets', 'database', 'owasp'],
+  repo: ['secrets', 'code', 'dependencies'],
+};
 
 export function Report({
   result,
@@ -30,23 +38,29 @@ export function Report({
   const [showMinor, setShowMinor] = useState(false);
   const verdict = VERDICT_META[result.verdict];
 
-  const { redFindings, yellowFindings, minorFindings, okCategories, liveKeys } = useMemo(() => {
-    const red = result.findings.filter((f) => f.severity === 'critical' || f.severity === 'high');
-    const yellow = result.findings.filter((f) => f.severity === 'medium');
-    // low + info are "nice to know" — kept visible for thoroughness, but collapsed
-    // so they don't drown out what actually needs fixing.
-    const minor = result.findings.filter((f) => f.severity === 'low' || f.severity === 'info');
-    const present = new Set(result.findings.map((f) => f.category));
-    const ok = ALL_CATEGORIES.filter((c) => !present.has(c));
-    const live = result.findings.filter((f) => f.verification?.status === 'active').length;
-    return {
-      redFindings: red,
-      yellowFindings: yellow,
-      minorFindings: minor,
-      okCategories: ok,
-      liveKeys: live,
-    };
-  }, [result]);
+  const { redFindings, yellowFindings, minorFindings, okCategories, gradesToShow, liveKeys } =
+    useMemo(() => {
+      const red = result.findings.filter((f) => f.severity === 'critical' || f.severity === 'high');
+      const yellow = result.findings.filter((f) => f.severity === 'medium');
+      // low + info are "nice to know" — kept visible for thoroughness, but collapsed
+      // so they don't drown out what actually needs fixing.
+      const minor = result.findings.filter((f) => f.severity === 'low' || f.severity === 'info');
+      const present = new Set(result.findings.map((f) => f.category));
+      // Categories relevant to this scan mode, plus any that carry findings.
+      const mode = result.mode ?? 'url';
+      const relevant = new Set<Category>([...(CATEGORIES_BY_MODE[mode] ?? ALL_CATEGORIES), ...present]);
+      const ok = ALL_CATEGORIES.filter((c) => relevant.has(c) && !present.has(c));
+      const grades = (result.categoryGrades ?? []).filter((cg) => relevant.has(cg.category));
+      const live = result.findings.filter((f) => f.verification?.status === 'active').length;
+      return {
+        redFindings: red,
+        yellowFindings: yellow,
+        minorFindings: minor,
+        okCategories: ok,
+        gradesToShow: grades,
+        liveKeys: live,
+      };
+    }, [result]);
 
   return (
     <div id="vibescan-report" className="w-full max-w-2xl">
@@ -75,9 +89,9 @@ export function Report({
       </div>
 
       {/* Per-category grades (A–F), like the overall verdict but broken down */}
-      {result.categoryGrades && result.categoryGrades.length > 0 && (
+      {gradesToShow.length > 0 && (
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {result.categoryGrades.map((cg) => (
+          {gradesToShow.map((cg) => (
             <div
               key={cg.category}
               className="flex items-center gap-3 rounded-xl border border-ink/10 bg-white px-3 py-2.5"

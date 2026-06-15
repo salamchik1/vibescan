@@ -710,6 +710,42 @@ Content-Security-Policy: frame-ancestors 'none'`,
       },
     ],
   },
+
+  sast_finding: {
+    title: 'Risky code pattern found in your source',
+    category: 'code',
+    defaultSeverity: 'medium',
+    whatItMeans:
+      'An automated code-analysis tool (Semgrep) flagged a risky pattern in {{file}} (rule "{{rule}}"){{countSuffix}}. Patterns like this — for example building a database query or HTML from raw user input, or using weak/disabled security settings — are how injection, XSS and similar bugs slip in. It is worth reviewing the flagged spot even if it turns out to be a false alarm.',
+    fixInstruction:
+      'A static-analysis scan flagged the rule "{{rule}}" in {{file}}. Open that file, review the flagged pattern, and rewrite it the safe way — e.g. use parameterised queries instead of string-concatenated SQL, escape/encode user input before putting it in HTML, and avoid disabling built-in security features. Then re-scan to confirm it is gone.',
+    fixSteps:
+      '1) Open {{file}} and find the code the rule "{{rule}}" points to. 2) Understand why it is risky (the rule name usually names the weakness, e.g. sql-injection, xss, insecure-hash). 3) Apply the standard safe pattern: parameterised queries for SQL, output-encoding for HTML, a strong algorithm for crypto, validated input for paths/commands. 4) Re-run the scan to verify the finding is resolved.',
+  },
+
+  vulnerable_dependency: {
+    title: 'A dependency has a known security vulnerability',
+    category: 'dependencies',
+    defaultSeverity: 'high',
+    whatItMeans:
+      'Your project depends on {{package}} version {{version}}, which has a publicly known vulnerability ({{advisory}}). Attackers actively scan for apps using vulnerable package versions, so this can be exploited even if your own code is perfect. The fix is almost always to upgrade the package.',
+    fixInstruction:
+      'My project uses {{package}}@{{version}}, which has a known vulnerability ({{advisory}}). Upgrade {{package}} to the latest patched version, update the lockfile, and make sure nothing breaks. If a direct upgrade is not possible because it is a transitive dependency, add an override/resolution to force the patched version.',
+    fixSteps:
+      '1) Upgrade {{package}} to a patched version (for npm: `npm install {{package}}@latest` or run `npm audit fix`; for Python: `pip install -U {{package}}`; for Go: `go get {{package}}@latest`). 2) Commit the updated lockfile. 3) If {{package}} is pulled in indirectly by another package, add a package-manager override/resolution to force the safe version. 4) Re-scan to confirm the advisory {{advisory}} is cleared.',
+    codeExamples: [
+      {
+        stack: 'npm overrides (package.json)',
+        language: 'json',
+        note: 'Force a patched version even when a transitive dependency pins an old one.',
+        code: `{
+  "overrides": {
+    "{{package}}": "{{version}}"
+  }
+}`,
+      },
+    ],
+  },
 };
 
 /** Fill {{placeholders}} in a string from a params map. Unknown placeholders are left as-is. */

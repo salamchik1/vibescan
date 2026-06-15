@@ -125,6 +125,61 @@ export async function assertSafeUrl(rawUrl: string): Promise<{ url: URL; ips: st
   return { url, ips: resolved.map((r) => r.address) };
 }
 
+/**
+ * Hosts we will hand to `git clone`. An *allowlist* (not just the SSRF denylist
+ * used for URL scans) is deliberate: the URL is passed to an external `git`
+ * process that can follow redirects, so restricting to a few well-known public
+ * forges eliminates the SSRF / DNS-rebinding class for cloning entirely.
+ */
+const ALLOWED_GIT_HOSTS = new Set(['github.com', 'gitlab.com', 'bitbucket.org']);
+
+/**
+ * Validate a user-supplied Git URL before we clone it. Stricter than
+ * assertSafeUrl: https only (no ssh/git/file/http), host must be on
+ * ALLOWED_GIT_HOSTS, no embedded credentials, and the resolved IPs must be
+ * public (defense in depth). Returns the normalised clone URL.
+ */
+export async function assertSafeGitUrl(rawUrl: string): Promise<{ url: URL }> {
+  let url: URL;
+  try {
+    url = new URL(rawUrl.trim());
+  } catch {
+    throw new SsrfError('That does not look like a valid Git URL.');
+  }
+
+  if (url.protocol !== 'https:') {
+    throw new SsrfError('Only https Git URLs are supported (e.g. https://github.com/owner/repo).');
+  }
+
+  if (url.username || url.password) {
+    throw new SsrfError('Remove credentials from the Git URL — only public repositories can be scanned.');
+  }
+
+  const host = url.hostname.toLowerCase().replace(/\.$/, '');
+  if (!ALLOWED_GIT_HOSTS.has(host)) {
+    throw new SsrfError('Only public GitHub, GitLab and Bitbucket repositories can be scanned.');
+  }
+
+  // Defense in depth: confirm the host still resolves to public addresses.
+  let resolved: Array<{ address: string }>;
+  try {
+    resolved = await dns.lookup(host, { all: true });
+  } catch {
+    throw new SsrfError('Could not resolve that Git host. Check the URL and try again.');
+  }
+  if (resolved.length === 0) throw new SsrfError('Could not resolve that Git host.');
+  for (const { address } of resolved) {
+    if (isBlockedIp(address)) {
+      throw new SsrfError('That Git host resolves to a private/internal address and cannot be scanned.');
+    }
+  }
+
+  // Normalise: drop any query/hash, ensure a clean clone URL.
+  url.search = '';
+  url.hash = '';
+  return { url };
+}
+
 /** Lightweight per-request guard used during page navigation (redirects, sub-resources). */
 export function isLikelyPrivateHost(hostname: string): boolean {
   const host = hostname.toLowerCase().replace(/\.$/, '');

@@ -66,6 +66,8 @@ export const CATEGORY_OK: Record<Category, string> = {
   database: 'No openly readable database detected',
   auth: 'No obvious authentication gaps found',
   owasp: 'Basic web hardening looks OK',
+  code: 'No risky code patterns found',
+  dependencies: 'No known-vulnerable dependencies found',
 };
 
 /** Colours for the A–F grade badges (overall + per category). */
@@ -82,6 +84,8 @@ export const CATEGORY_LABEL: Record<Category, string> = {
   database: 'Database',
   auth: 'Auth & access',
   owasp: 'Web hardening',
+  code: 'Code (SAST)',
+  dependencies: 'Dependencies',
 };
 
 /** Guess the platform from the scanned URL so the fix prompts default sensibly. */

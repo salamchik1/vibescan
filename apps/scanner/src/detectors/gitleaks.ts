@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import type { Finding } from '@vibescan/findings';
 import type { CollectResult } from '../collector';
+import type { RepoContext } from '../repo/types';
 import { config } from '../config';
 
 const execFileAsync = promisify(execFile);
@@ -14,6 +15,33 @@ interface GitleaksHit {
   Description?: string;
   Match?: string;
   Secret?: string;
+  File?: string;
+  Commit?: string;
+}
+
+/** Turn a list of gitleaks hits into deduped `secret_exposed` findings. */
+function hitsToFindings(hits: GitleaksHit[], withLocation: boolean): Finding[] {
+  const seen = new Set<string>();
+  const findings: Finding[] = [];
+  for (const hit of hits) {
+    const provider = hit.RuleID ?? hit.Description ?? 'secret';
+    const masked = hit.Secret || hit.Match || '(redacted)';
+    const key = `${provider}::${masked}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const params: Record<string, string> = { provider };
+    if (withLocation && hit.File) params.file = hit.File;
+    if (withLocation && hit.Commit) params.commit = hit.Commit.slice(0, 10);
+    findings.push({
+      type: 'secret_exposed',
+      severity: 'critical',
+      category: 'secrets',
+      summary: `${provider} (${masked})`,
+      evidence: masked,
+      params,
+    });
+  }
+  return findings;
 }
 
 /**
@@ -40,24 +68,38 @@ export async function runGitleaks(collected: CollectResult): Promise<Finding[]> 
 
     const raw = await readFile(report, 'utf8').catch(() => '[]');
     const hits = JSON.parse(raw) as GitleaksHit[];
-    const seen = new Set<string>();
-    const findings: Finding[] = [];
-    for (const hit of hits) {
-      const provider = hit.RuleID ?? hit.Description ?? 'secret';
-      const masked = hit.Secret || hit.Match || '(redacted)';
-      const key = `${provider}::${masked}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      findings.push({
-        type: 'secret_exposed',
-        severity: 'critical',
-        category: 'secrets',
-        summary: `${provider} (${masked})`,
-        evidence: masked,
-        params: { provider },
-      });
-    }
-    return findings;
+    return hitsToFindings(hits, false);
+  } catch {
+    return [];
+  } finally {
+    if (dir) await rm(dir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+/**
+ * Full-history secret scan of a cloned repository. Unlike runGitleaks (which
+ * scans loose script files with --no-git), this scans the git history, so it
+ * catches secrets that were committed and later "removed" but still live in old
+ * commits. Gated by SCANNER_USE_GITLEAKS; never throws.
+ */
+export async function runGitleaksRepo(ctx: RepoContext): Promise<Finding[]> {
+  if (!config.useGitleaks || !ctx.hasGitHistory) return [];
+
+  let report: string | null = null;
+  let dir: string | null = null;
+  try {
+    dir = await mkdtemp(join(tmpdir(), 'vibescan-glr-'));
+    report = join(dir, 'report.json');
+    // No --no-git: scan the commit history of the cloned working tree.
+    await execFileAsync(
+      'gitleaks',
+      ['detect', '-s', ctx.dir, '-f', 'json', '-r', report, '--redact', '--exit-code', '0'],
+      { timeout: 60_000, maxBuffer: 32 * 1024 * 1024 }
+    );
+
+    const raw = await readFile(report, 'utf8').catch(() => '[]');
+    const hits = JSON.parse(raw) as GitleaksHit[];
+    return hitsToFindings(hits, true);
   } catch {
     return [];
   } finally {

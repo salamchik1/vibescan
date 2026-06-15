@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { ScanResult } from '@vibescan/findings';
 import { ScanForm, type ScanInput } from '../components/ScanForm';
 import { LoadingScreen } from '../components/LoadingScreen';
@@ -10,42 +11,108 @@ import { SiteHeader } from '../components/SiteHeader';
 type State =
   | { phase: 'idle' }
   | { phase: 'loading'; label: string; mode: 'url' | 'code' }
+  | { phase: 'polling'; label: string; status: string }
   | { phase: 'done'; result: ScanResult; lastInput: ScanInput; id?: string }
   | { phase: 'error'; message: string };
 
+// Live status copy per repo-job state.
+const REPO_STATUS_TEXT: Record<string, string> = {
+  queued: 'Queued…',
+  cloning: 'Cloning the repository…',
+  scanning: 'Analysing the code…',
+};
+
 export default function Home() {
   const [state, setState] = useState<State>({ phase: 'idle' });
+  const router = useRouter();
 
-  const runScan = useCallback(async (input: ScanInput) => {
-    const isCode = 'code' in input;
-    setState({
-      phase: 'loading',
-      mode: isCode ? 'code' : 'url',
-      label: isCode ? 'your pasted code' : input.url,
-    });
-    try {
-      const res = await fetch('/api/scan', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(input),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setState({ phase: 'error', message: data?.error ?? 'Something went wrong. Please try again.' });
+  // Repo scans are async: enqueue a job, then poll Supabase (via our route)
+  // until it's done, then jump to the saved report at /r/{id}.
+  const pollRepoJob = useCallback(
+    async (jobId: string, label: string) => {
+      const MAX_ATTEMPTS = 80; // ~4 min at 3s intervals
+      for (let i = 0; i < MAX_ATTEMPTS; i += 1) {
+        await new Promise((r) => setTimeout(r, 3000));
+        let data: { status?: string; scanId?: string | null; error?: string };
+        try {
+          const res = await fetch(`/api/scan/repo/${jobId}`);
+          data = await res.json();
+          if (!res.ok) {
+            setState({ phase: 'error', message: data?.error ?? 'Lost track of the scan.' });
+            return;
+          }
+        } catch {
+          continue; // transient hiccup — keep polling
+        }
+        if (data.status === 'done') {
+          if (data.scanId) router.push(`/r/${data.scanId}`);
+          else setState({ phase: 'error', message: 'The scan finished but the report could not be saved.' });
+          return;
+        }
+        if (data.status === 'failed') {
+          setState({ phase: 'error', message: data.error || 'The repository scan failed.' });
+          return;
+        }
+        setState({ phase: 'polling', label, status: REPO_STATUS_TEXT[data.status ?? ''] ?? 'Scanning…' });
+      }
+      setState({ phase: 'error', message: 'The scan is taking longer than expected. Please try again later.' });
+    },
+    [router]
+  );
+
+  const runScan = useCallback(
+    async (input: ScanInput) => {
+      if ('repoUrl' in input) {
+        setState({ phase: 'polling', label: input.repoUrl, status: 'Starting…' });
+        try {
+          const res = await fetch('/api/scan/repo', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ repoUrl: input.repoUrl }),
+          });
+          const data = await res.json();
+          if (!res.ok || !data?.jobId) {
+            setState({ phase: 'error', message: data?.error ?? 'Could not start the scan.' });
+            return;
+          }
+          await pollRepoJob(data.jobId, input.repoUrl);
+        } catch {
+          setState({ phase: 'error', message: 'Network error. Please try again.' });
+        }
         return;
       }
-      const { id, ...result } = data as ScanResult & { id?: string };
-      setState({ phase: 'done', result: result as ScanResult, lastInput: input, id });
-    } catch {
-      setState({ phase: 'error', message: 'Network error. Please try again.' });
-    }
-  }, []);
+
+      const isCode = 'code' in input;
+      setState({
+        phase: 'loading',
+        mode: isCode ? 'code' : 'url',
+        label: isCode ? 'your pasted code' : input.url,
+      });
+      try {
+        const res = await fetch('/api/scan', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(input),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setState({ phase: 'error', message: data?.error ?? 'Something went wrong. Please try again.' });
+          return;
+        }
+        const { id, ...result } = data as ScanResult & { id?: string };
+        setState({ phase: 'done', result: result as ScanResult, lastInput: input, id });
+      } catch {
+        setState({ phase: 'error', message: 'Network error. Please try again.' });
+      }
+    },
+    [pollRepoJob]
+  );
 
   const rescan = useCallback(() => {
     if (state.phase === 'done') runScan(state.lastInput);
   }, [state, runScan]);
 
-  const busy = state.phase === 'loading';
+  const busy = state.phase === 'loading' || state.phase === 'polling';
 
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col items-center px-5 py-12 sm:py-16">
@@ -76,6 +143,8 @@ export default function Home() {
       )}
 
       {state.phase === 'loading' && <LoadingScreen url={state.label} />}
+
+      {state.phase === 'polling' && <LoadingScreen url={state.label} status={state.status} />}
 
       {state.phase === 'error' && (
         <p className="mt-8 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-600">

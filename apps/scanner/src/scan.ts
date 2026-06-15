@@ -21,7 +21,7 @@ export class TimeoutError extends Error {
 
 const SEVERITY_ORDER: Record<Severity, number> = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
 
-function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+export function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
     p,
     new Promise<T>((_, reject) => setTimeout(() => reject(new TimeoutError()), ms)),
@@ -41,7 +41,7 @@ function dedupe(findings: Finding[]): Finding[] {
 }
 
 /** Run one detector, capturing failures as notes instead of aborting the whole scan. */
-async function safe<T extends Finding[]>(
+export async function safe<T extends Finding[]>(
   name: string,
   fn: () => Promise<T> | T,
   notes: string[]
@@ -55,7 +55,7 @@ async function safe<T extends Finding[]>(
 }
 
 /** Assemble the final ScanResult from raw findings (dedupe + score + grade). */
-function buildResult(
+export function buildResult(
   label: string,
   mode: ScanMode,
   findings: Finding[],

@@ -32,6 +32,22 @@ apps/web (Next.js)  ──POST /api/scan (server-side, shared secret)──▶  
 - The scanner is **stateless** and **stores nothing**. Secrets are masked (`sk_live_****abcd`); the
   downloaded page is discarded after the scan.
 
+### Scan modes
+
+| Mode | Input | What runs |
+|---|---|---|
+| **URL** | a live URL | Playwright + the live detectors (secrets, open DB, auth, OWASP, exposed files) — synchronous |
+| **Code** | pasted source | the text-only detectors (leaked secrets, DB creds, hard-coded config) — synchronous |
+| **Repo** | a public Git URL | **async job**: clone the repo, then **Semgrep** (SAST), **dependency CVEs** (OSV.dev) and **gitleaks** over the full git history |
+
+Repository scans run as an **asynchronous job** (clone + Semgrep + OSV + gitleaks take minutes): the
+scanner returns a `jobId` immediately and records progress in the Supabase `repo_scan_jobs` table; the
+web app polls that table and opens the saved report at `/r/{id}` when it's done. The cloned repo lives
+only in a temp dir and is deleted after the scan. Enable with `SCANNER_USE_REPO_SCAN=1`
+(+ `SCANNER_USE_SEMGREP=1` for SAST, `SCANNER_USE_GITLEAKS=1` for the history secret scan); needs `git`
+(always), and `semgrep`/`gitleaks` on PATH (both baked into the Docker image). Only public
+GitHub/GitLab/Bitbucket `https` URLs are accepted (host allowlist, no credentials, size/time caps).
+
 ## Structure
 
 | Path | What |

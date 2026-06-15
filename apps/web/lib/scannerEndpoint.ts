@@ -35,3 +35,25 @@ export async function getDynamicScannerUrl(): Promise<ScannerEndpoint> {
     return { status: 'missing' };
   }
 }
+
+export type ResolvedScanner = { url: string } | { error: string; status: number };
+
+/**
+ * Where to send a scan: a pinned SCANNER_URL (local dev / 24-7 host), or the
+ * live tunnel URL the on-PC agent published to Supabase. Shared by the URL/code
+ * proxy (/api/scan) and the repo proxy (/api/scan/repo). Never throws.
+ */
+export async function resolveScannerUrl(): Promise<ResolvedScanner> {
+  const pinned = process.env.SCANNER_URL?.trim() || '';
+  if (pinned) return { url: pinned };
+
+  const ep = await getDynamicScannerUrl();
+  if (ep.status === 'live') return { url: ep.url };
+  if (ep.status === 'stale') {
+    return {
+      error: 'The scanner is offline right now (the host machine looks powered off). Please try again later.',
+      status: 503,
+    };
+  }
+  return { error: 'The scanner is not connected right now. Please try again shortly.', status: 503 };
+}
