@@ -21,11 +21,38 @@ export const SEVERITY_WEIGHTS: Record<Severity, number> = {
   info: 0,
 };
 
+/**
+ * Low/info findings are "nice to know" hardening gaps, not real exposure, so we
+ * cap their *combined* hit to the score. A pile of minor items can nudge a site
+ * out of the green band, but can never drag it into red on its own — that band
+ * is reserved for genuine critical/high/medium issues. Without this cap, 14
+ * minor findings (−42) outweigh a critical + high combined, which is wrong.
+ */
+export const MINOR_DEDUCTION_CAP = 25;
+
+/** Severities treated as "minor" (their deduction is capped, see above). */
+const MINOR_SEVERITIES: ReadonlySet<Severity> = new Set<Severity>(['low', 'info']);
+
 /** Verdict bands by score. */
 export const VERDICT_BANDS = {
   redBelow: 50, // score < 50  -> red
   greenFrom: 80, // score >= 80 -> green; otherwise yellow
 } as const;
+
+/**
+ * Total points to subtract from 100: major severities (critical/high/medium)
+ * count in full and linearly; the minor tier (low/info) is summed and then
+ * capped at MINOR_DEDUCTION_CAP. Shared by the overall and per-category scores.
+ */
+function deductionFromFindings(findings: Finding[]): number {
+  let major = 0;
+  let minor = 0;
+  for (const f of findings) {
+    if (MINOR_SEVERITIES.has(f.severity)) minor += SEVERITY_WEIGHTS[f.severity];
+    else major += SEVERITY_WEIGHTS[f.severity];
+  }
+  return major + Math.min(minor, MINOR_DEDUCTION_CAP);
+}
 
 export function emptyCounts(): SeverityCounts {
   return { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
@@ -38,9 +65,7 @@ export function countBySeverity(findings: Finding[]): SeverityCounts {
 }
 
 export function scoreFromFindings(findings: Finding[]): number {
-  let score = 100;
-  for (const f of findings) score -= SEVERITY_WEIGHTS[f.severity];
-  return Math.max(0, Math.min(100, score));
+  return Math.max(0, Math.min(100, 100 - deductionFromFindings(findings)));
 }
 
 export function verdictFromScore(score: number): Verdict {
@@ -60,15 +85,13 @@ export function gradeFromScore(score: number): Grade {
 
 /**
  * Per-category A–F breakdown. Each category starts at 100 and loses the same
- * severity weights as the overall score, so a single critical leak tanks that
- * category to an F while leaving untouched categories at A.
+ * (minor-capped) deductions as the overall score, so a single critical leak
+ * tanks that category to an F while leaving untouched categories at A.
  */
 export function categoryGrades(findings: Finding[]): CategoryGrade[] {
   return ALL_CATEGORIES.map((category) => {
     const inCategory = findings.filter((f) => f.category === category);
-    let score = 100;
-    for (const f of inCategory) score -= SEVERITY_WEIGHTS[f.severity];
-    score = Math.max(0, Math.min(100, score));
+    const score = Math.max(0, Math.min(100, 100 - deductionFromFindings(inCategory)));
     return { category, score, grade: gradeFromScore(score), findings: inCategory.length };
   });
 }

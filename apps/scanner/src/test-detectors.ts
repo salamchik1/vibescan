@@ -226,6 +226,35 @@ const owaspWeakCsp = await detectOwasp(weakCsp);
 check('flags weak CSP (unsafe-inline/unsafe-eval)', has(owaspWeakCsp, (f) => f.type === 'weak_csp'));
 check('weak CSP with unsafe-eval is medium', has(owaspWeakCsp, (f) => f.type === 'weak_csp' && f.severity === 'medium'));
 
+// A nonce + 'strict-dynamic' makes browsers ignore 'unsafe-inline' and the
+// wildcard, so a policy like Google/YouTube's must NOT be flagged as weak.
+const noncedCsp: CollectResult = {
+  ...weakCsp,
+  responseHeaders: {
+    ...weakCsp.responseHeaders,
+    'content-security-policy':
+      "script-src 'nonce-r4nd0m' 'strict-dynamic' 'unsafe-inline' https: *",
+  },
+};
+check(
+  'no weak CSP finding when a nonce + strict-dynamic neutralise unsafe-inline/wildcard',
+  !has(await detectOwasp(noncedCsp), (f) => f.type === 'weak_csp')
+);
+
+// ...but 'unsafe-eval' survives a nonce/strict-dynamic, so it is still flagged.
+const noncedEvalCsp: CollectResult = {
+  ...weakCsp,
+  responseHeaders: {
+    ...weakCsp.responseHeaders,
+    'content-security-policy':
+      "script-src 'nonce-r4nd0m' 'strict-dynamic' 'unsafe-inline' 'unsafe-eval'",
+  },
+};
+check(
+  "unsafe-eval is still flagged (medium) even with a nonce/strict-dynamic",
+  has(await detectOwasp(noncedEvalCsp), (f) => f.type === 'weak_csp' && f.severity === 'medium')
+);
+
 // Insecure session cookie missing HttpOnly + SameSite (origin '' -> no Secure requirement, no CORS network).
 const cookieCase: CollectResult = {
   ...collected,

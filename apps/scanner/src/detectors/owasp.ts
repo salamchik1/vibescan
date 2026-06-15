@@ -153,11 +153,23 @@ function analyzeCsp(csp: string): string | null {
     directives.find((d) => d.startsWith('script-src')) ??
     directives.find((d) => d.startsWith('default-src')) ??
     '';
+  // A nonce/hash or 'strict-dynamic' makes modern browsers *ignore* 'unsafe-inline'
+  // and host/wildcard sources, so they no longer weaken the policy — this is how
+  // browsers (and Google's CSP Evaluator) actually apply the spec. Big sites like
+  // Google/YouTube keep 'unsafe-inline' only as a fallback for old browsers, so
+  // flagging it here would be a false positive. 'unsafe-eval' is never neutralised.
+  const hasNonceOrHash = /'(nonce-|sha(256|384|512)-)/.test(scriptSrc);
+  const hasStrictDynamic = scriptSrc.includes("'strict-dynamic'");
+  const inlineNeutralised = hasNonceOrHash || hasStrictDynamic;
+
   const issues: string[] = [];
-  if (scriptSrc.includes("'unsafe-inline'")) issues.push("'unsafe-inline'");
+  if (scriptSrc.includes("'unsafe-inline'") && !inlineNeutralised) issues.push("'unsafe-inline'");
   if (scriptSrc.includes("'unsafe-eval'")) issues.push("'unsafe-eval'");
-  // A bare wildcard source (not part of a domain like *.example.com).
-  if (/(^|\s)\*(\s|$)/.test(scriptSrc)) issues.push('a wildcard (*) script source');
+  // A bare wildcard source (not part of a domain like *.example.com); ignored by
+  // browsers when 'strict-dynamic' is set.
+  if (!hasStrictDynamic && /(^|\s)\*(\s|$)/.test(scriptSrc)) {
+    issues.push('a wildcard (*) script source');
+  }
   return issues.length ? issues.join(', ') : null;
 }
 
