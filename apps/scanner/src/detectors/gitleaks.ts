@@ -19,6 +19,25 @@ interface GitleaksHit {
   Commit?: string;
 }
 
+/**
+ * gitleaks rule IDs whose matches are low-confidence by construction: they fire
+ * on a secret-ish *keyword* sitting near a high-entropy string, not on a known
+ * provider key format. They are the dominant source of false positives —
+ * tripping on placeholders, .env examples, test fixtures (including our own),
+ * build hashes and other non-secret tokens. We still surface them (a real leak
+ * can hide here) but as a `low`, minor finding instead of a screaming critical,
+ * and tag them `unverified` so the report card carries the caveat. Provider-
+ * format rules (Stripe, AWS, GitHub, Slack, private keys, JWTs, …) are precise,
+ * so they keep their critical severity — important because on repo scans
+ * gitleaks is the ONLY secrets engine (the provider-aware detectSecrets runs on
+ * URL/code scans only), so a real service_role/AWS leak must not be demoted. */
+const LOW_CONFIDENCE_RULES: ReadonlySet<string> = new Set(['generic-api-key']);
+
+const LOW_CONFIDENCE_DETAIL =
+  'Low-confidence match: flagged by a generic keyword + high-entropy rule, not a known provider key ' +
+  "format. It's often a placeholder, example, or test value. Confirm it's a real, live credential " +
+  'before rotating anything.';
+
 /** Turn a list of gitleaks hits into deduped `secret_exposed` findings. */
 function hitsToFindings(hits: GitleaksHit[], withLocation: boolean): Finding[] {
   const seen = new Set<string>();
@@ -32,14 +51,19 @@ function hitsToFindings(hits: GitleaksHit[], withLocation: boolean): Finding[] {
     const params: Record<string, string> = { provider };
     if (withLocation && hit.File) params.file = hit.File;
     if (withLocation && hit.Commit) params.commit = hit.Commit.slice(0, 10);
-    findings.push({
+    const lowConfidence = LOW_CONFIDENCE_RULES.has(hit.RuleID ?? '');
+    const finding: Finding = {
       type: 'secret_exposed',
-      severity: 'critical',
+      severity: lowConfidence ? 'low' : 'critical',
       category: 'secrets',
       summary: `${provider} (${masked})`,
       evidence: masked,
       params,
-    });
+    };
+    if (lowConfidence) {
+      finding.verification = { status: 'unverified', detail: LOW_CONFIDENCE_DETAIL };
+    }
+    findings.push(finding);
   }
   return findings;
 }
