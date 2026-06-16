@@ -345,6 +345,14 @@ const svcHits = hitsToFindings([{ RuleID: 'jwt', Secret: svcJwt, File: 'src/db.t
 check('keeps a Supabase service_role JWT as critical', svcHits.some((f) => f.severity === 'critical' && /service_role/.test(f.summary)));
 check('service_role finding never leaks the raw JWT', !svcHits.some((f) => (f.summary + (f.evidence ?? '')).includes(svcJwt)));
 
+// A roleless JWT (session/demo token, e.g. the jwt.io sample our JWT decoder
+// ships) is low-signal: surfaced, but as a `low` unverified finding, not a
+// screaming critical. Only role:service_role stays critical (checked above).
+const plainJwt = `${b64url({ alg: 'HS256', typ: 'JWT' })}.${b64url({ sub: '1234567890', name: 'John Doe', iat: 1516239022 })}.c2lnbmF0dXJlX3Rlc3Q`;
+const plainHits = hitsToFindings([{ RuleID: 'jwt', Secret: plainJwt }], false);
+check('demotes a roleless JWT to low confidence', plainHits.some((f) => f.severity === 'low' && f.verification?.status === 'unverified'));
+check('roleless JWT is still surfaced (not dropped)', plainHits.length === 1);
+
 // Repo-history hits are `secret_committed` (talks about commits), not the
 // browser-flavoured `secret_exposed`.
 const repoHits = hitsToFindings([{ RuleID: 'stripe-access-token', Secret: 'sk_live_abcdef013456789', File: 'src/pay.ts', Commit: 'deadbeef00cafe' }], true);

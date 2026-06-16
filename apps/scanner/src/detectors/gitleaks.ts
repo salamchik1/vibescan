@@ -40,6 +40,11 @@ const LOW_CONFIDENCE_DETAIL =
   "format. It's often a placeholder, example, or test value. Confirm it's a real, live credential " +
   'before rotating anything.';
 
+const ROLELESS_JWT_DETAIL =
+  "Low-confidence match: a JWT with no Supabase role claim. It's usually a session token, a test " +
+  'fixture, or a demo/example token (such as the well-known jwt.io sample). A Supabase admin key would ' +
+  "decode to role:service_role and stay critical. Confirm it's a real, live credential before rotating.";
+
 /**
  * If a hit's secret is a Supabase JWT, return its `role` claim (anon |
  * authenticated | service_role | …). Lets us tell a public-by-design anon key
@@ -78,7 +83,14 @@ export function hitsToFindings(hits: GitleaksHit[], withLocation: boolean): Find
     if (role === 'anon' || role === 'authenticated') continue;
 
     const isServiceRole = role === 'service_role';
-    const lowConfidence = !isServiceRole && LOW_CONFIDENCE_RULES.has(hit.RuleID ?? '');
+    // A `jwt`-rule hit with no decodable Supabase role is low-signal: it's a
+    // session token, a demo/example token (e.g. the jwt.io sample shipped by our
+    // own JWT decoder tool), or a test fixture — not a known dangerous key. A real
+    // admin key always decodes to role:service_role above, so demoting these never
+    // hides a genuine leak. (anon/authenticated were already dropped just above.)
+    const rolelessJwt = !role && hit.RuleID === 'jwt';
+    const lowConfidence =
+      !isServiceRole && (LOW_CONFIDENCE_RULES.has(hit.RuleID ?? '') || rolelessJwt);
     const provider = isServiceRole
       ? 'Supabase service_role'
       : hit.RuleID ?? hit.Description ?? 'secret';
@@ -112,7 +124,10 @@ export function hitsToFindings(hits: GitleaksHit[], withLocation: boolean): Find
       params,
     };
     if (lowConfidence) {
-      finding.verification = { status: 'unverified', detail: LOW_CONFIDENCE_DETAIL };
+      finding.verification = {
+        status: 'unverified',
+        detail: rolelessJwt ? ROLELESS_JWT_DETAIL : LOW_CONFIDENCE_DETAIL,
+      };
     }
     findings.push(finding);
   }
