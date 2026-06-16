@@ -3,6 +3,7 @@ import type { CollectResult } from '../collector';
 import { maskSecret } from '../util/mask';
 import { extractJwts, jwtRole } from '../util/jwt';
 import { shannonEntropy } from '../util/entropy';
+import { hasPublicAnalyticsContext, PUBLIC_ANALYTICS_WINDOW } from '../util/publicKeys';
 import { isVerifiable, verifySecret, type LivenessResult, type Probe } from '../verify/liveness';
 
 interface SecretRule {
@@ -260,6 +261,14 @@ export async function detectSecrets(
     // Require a nearby secret-ish keyword: this is what separates a real exposed
     // credential from random build/asset blobs on large third-party sites.
     if (m.index === undefined || !hasSecretContext(text, m.index)) continue;
+    // Drop public-by-design analytics keys (Segment/Ahrefs/GA client keys): when
+    // the token sits inside a known analytics loader context it's meant to ship to
+    // the browser, exactly like a Supabase anon key, so it isn't a leak. This only
+    // touches the low-confidence entropy fallback — every precise provider rule
+    // already ran in step 1 — so a real key is never silenced here.
+    const ctxStart = Math.max(0, m.index - PUBLIC_ANALYTICS_WINDOW);
+    const ctxEnd = Math.min(text.length, m.index + raw.length + PUBLIC_ANALYTICS_WINDOW);
+    if (hasPublicAnalyticsContext(text.slice(ctxStart, ctxEnd))) continue;
     const masked = maskSecret(raw);
     const key = dedupeKey('High-entropy token', masked);
     if (seen.has(key)) continue;

@@ -9,6 +9,7 @@ import type { RepoContext } from '../repo/types';
 import { config } from '../config';
 import { maskSecret } from '../util/mask';
 import { extractJwts, jwtRole } from '../util/jwt';
+import { hasPublicAnalyticsContext, isPublicAnalyticsId } from '../util/publicKeys';
 
 const execFileAsync = promisify(execFile);
 
@@ -129,6 +130,19 @@ export function hitsToFindings(hits: GitleaksHit[], withLocation: boolean): Find
     if (role === 'anon' || role === 'authenticated') continue;
 
     const isServiceRole = role === 'service_role';
+    // Public-by-design analytics / tag keys (Google tag ids, Segment / Ahrefs /
+    // Plausible client keys) are meant to ship in the page, exactly like the anon
+    // key above, so generic-api-key reporting them is a false positive. Drop them:
+    //  - by value for Google's unmistakable tag-id shapes (no secret material at all);
+    //  - by surrounding context, but ONLY for the low-confidence generic-api-key rule
+    //    (which is what trips on `data-key`/`writeKey`), so a precise provider hit
+    //    (Stripe/AWS/…) that merely sits near an analytics snippet is never lost.
+    const isPublicAnalytics =
+      !isServiceRole &&
+      (isPublicAnalyticsId(raw) ||
+        (hit.RuleID === 'generic-api-key' &&
+          hasPublicAnalyticsContext(`${hit.Match ?? ''} ${hit.File ?? ''}`)));
+    if (isPublicAnalytics) continue;
     // A `jwt`-rule hit with no decodable Supabase role is low-signal: it's a
     // session token, a demo/example token (e.g. the jwt.io sample shipped by our
     // own JWT decoder tool), or a test fixture — not a known dangerous key. A real

@@ -85,6 +85,20 @@ const ctxJs = `const apiKey = "aB3xK9mZ2pQ7wL5vR8tN4cF6yH1jD0sGqW";`;
 const ctx = await detectSecrets({ ...collected, jsCombined: ctxJs });
 check('flags a high-entropy token that has secret context', has(ctx, (f) => /high-entropy/.test(f.summary) && f.severity === 'low'));
 
+// --- Public-by-design analytics keys: dropped, not screamed -----------------
+// A Segment/Ahrefs client key is MEANT to ship in the page (rate-limited on the
+// vendor side, like a Supabase anon key). Even with a secret-ish keyword right
+// before it, the entropy fallback must NOT report it once it sits in a known
+// analytics loader context — that's the false alarm we're killing.
+const segmentToken = 'qZ7wL5vR8tN4cF6yH1jD0sGqWaB3xK9mZ2p';
+const segmentJs = `<script src="https://cdn.segment.com/analytics.js"></script>\nconst apiKey = "${segmentToken}";\nanalytics.load(apiKey);`;
+const segment = await detectSecrets({ ...collected, jsCombined: segmentJs });
+check('drops a Segment/analytics client key in loader context', !has(segment, (f) => /high-entropy/.test(f.summary)));
+// Sanity: the SAME token with no analytics marker is still surfaced (low), so the
+// drop is the analytics context doing the work, not the token being unflaggable.
+const segmentBare = await detectSecrets({ ...collected, jsCombined: `const apiKey = "${segmentToken}";` });
+check('the same token without analytics context is still flagged', has(segmentBare, (f) => /high-entropy/.test(f.summary) && f.severity === 'low'));
+
 // --- Google API keys: publishable (safe) vs. unidentified -------------------
 // `AIza…` keys are publishable by design for browser SDKs. A Firebase web config
 // key MUST NOT be reported as a leaked secret — that's the false alarm we're killing.
@@ -383,6 +397,39 @@ check("demotes AWS's AKIA…EXAMPLE doc key to low", awsExample.some((f) => f.se
 // Loose-script hits (no location) stay `secret_exposed` (shipped in page JS).
 const urlHits = hitsToFindings([{ RuleID: 'stripe-access-token', Secret: realRepoSecret }], false);
 check('loose-script secret stays secret_exposed', urlHits.some((f) => f.type === 'secret_exposed') && !urlHits.some((f) => f.params?.commit));
+
+// --- Public-by-design analytics / tag keys (gitleaks) -----------------------
+// Google tag/measurement ids are pure public identifiers (no secret material),
+// so they are dropped by value whatever rule fired.
+const gaId = `G-${'AB12CD34EF'}`;
+const gaHit = hitsToFindings([{ RuleID: 'generic-api-key', Secret: gaId, Match: `gtag('config','${gaId}')`, File: 'index.html' }], false);
+check('drops a Google Analytics measurement id (public identifier)', gaHit.length === 0);
+const gtmHit = hitsToFindings([{ RuleID: 'generic-api-key', Secret: `GTM-${'WXYZ123'}`, File: 'index.html' }], false);
+check('drops a Google Tag Manager id', gtmHit.length === 0);
+
+// A random-looking client key is dropped by its analytics loader context — but
+// only for the low-confidence generic rule (see the AWS guard below).
+const ahrefsKey = `${'aBcD1234'}${'EfGh5678'}${'IjKl90Mn'}`;
+const ahrefsHit = hitsToFindings(
+  [{ RuleID: 'generic-api-key', Secret: ahrefsKey, Match: `<script src="https://analytics.ahrefs.com/analytics.js" data-key="${ahrefsKey}">`, File: 'index.html' }],
+  false
+);
+check('drops an Ahrefs analytics data-key (public by design)', ahrefsHit.length === 0);
+
+// REGRESSION GUARD: a generic-api-key hit with NO analytics context is still
+// surfaced (as a low-confidence finding) — we haven't blunted the rule itself.
+const genericKey = `${'kV82nQ'}${'pW73mZ'}${'rX64bN'}${'tY55cM'}`;
+const genericHit = hitsToFindings([{ RuleID: 'generic-api-key', Secret: genericKey, Match: `const apiKey = "${genericKey}"`, File: 'src/config.ts' }], false);
+check('still surfaces a generic-api-key hit with no analytics context', genericHit.some((f) => f.severity === 'low'));
+
+// SAFETY GUARD: a PRECISE provider hit (AWS) that merely sits next to an analytics
+// snippet must NEVER be dropped — context-based dropping is generic-rule-only.
+const awsRealKey = `AKIA${'J7Q2RW9XK4M6BN5P'}`;
+const awsNearAnalytics = hitsToFindings(
+  [{ RuleID: 'aws-access-token', Secret: awsRealKey, Match: `// after https://cdn.segment.com/analytics.js\nconst k="${awsRealKey}"`, File: 'src/aws.ts' }],
+  false
+);
+check('keeps a real AWS key even next to an analytics snippet', awsNearAnalytics.some((f) => f.severity === 'critical'));
 
 if (failures > 0) {
   console.error(`\n${failures} detector test(s) failed.`);
