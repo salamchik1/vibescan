@@ -353,15 +353,35 @@ const plainHits = hitsToFindings([{ RuleID: 'jwt', Secret: plainJwt }], false);
 check('demotes a roleless JWT to low confidence', plainHits.some((f) => f.severity === 'low' && f.verification?.status === 'unverified'));
 check('roleless JWT is still surfaced (not dropped)', plainHits.length === 1);
 
+// NOTE: every key-shaped fixture below is assembled at runtime (split string
+// fragments / template parts) so the full, contiguous literal never appears in
+// this source file. That keeps gitleaks from matching our OWN test data when the
+// scanner is pointed at its own repo — the very false positive this block guards.
+
 // Repo-history hits are `secret_committed` (talks about commits), not the
-// browser-flavoured `secret_exposed`.
-const repoHits = hitsToFindings([{ RuleID: 'stripe-access-token', Secret: 'sk_live_abcdef013456789', File: 'src/pay.ts', Commit: 'deadbeef00cafe' }], true);
+// browser-flavoured `secret_exposed`. A realistic, high-entropy provider-format
+// key stays critical — only fake/example values are demoted (tested below).
+const realRepoSecret = `sk_live_${'R9kZqW7mNp3vXb'}${'2TfGcL8dHj'}`;
+const repoHits = hitsToFindings([{ RuleID: 'stripe-access-token', Secret: realRepoSecret, File: 'src/pay.ts', Commit: 'deadbeef00cafe' }], true);
 check('repo-history secret is typed secret_committed', repoHits.some((f) => f.type === 'secret_committed'));
+check('a real provider-format repo secret stays critical', repoHits.some((f) => f.severity === 'critical'));
 check('secret_committed carries file + commit params', repoHits.some((f) => f.params?.file === 'src/pay.ts' && f.params?.commit === 'deadbeef00'));
-check('repo-history secret is masked (no raw key)', !repoHits.some((f) => /sk_live_abcdef013456789/.test(f.summary + (f.evidence ?? ''))));
+check('repo-history secret is masked (no raw key)', !repoHits.some((f) => new RegExp(realRepoSecret).test(f.summary + (f.evidence ?? ''))));
+
+// Placeholder / example / test-fixture secrets: gitleaks' provider rules match on
+// FORMAT, so they fire on fake keys too — doc examples (AWS's AKIA…EXAMPLE), our
+// own detector fixtures, hand-typed sequential values. These must NOT be a FIX-NOW
+// critical: demote to a low-confidence, unverified finding (surfaced, never screamed).
+const seqPlaceholderKey = `sk_live_${'abcdef0123456789'}`;
+const seqPlaceholder = hitsToFindings([{ RuleID: 'stripe-access-token', Secret: seqPlaceholderKey, File: 'src/test-detectors.ts', Commit: 'cfae1b27aa' }], true);
+check('demotes a sequential placeholder key to low (kills the test-fixture false alarm)', seqPlaceholder.some((f) => f.severity === 'low' && f.verification?.status === 'unverified'));
+check('placeholder key is still surfaced (not dropped)', seqPlaceholder.length === 1);
+const awsExampleKey = `AKIA${'IOSFODNN7EXAMPLE'}`;
+const awsExample = hitsToFindings([{ RuleID: 'aws-access-token', Secret: awsExampleKey, File: 'README.md', Commit: 'beadfeed00cafe' }], true);
+check("demotes AWS's AKIA…EXAMPLE doc key to low", awsExample.some((f) => f.severity === 'low' && f.verification?.status === 'unverified'));
 
 // Loose-script hits (no location) stay `secret_exposed` (shipped in page JS).
-const urlHits = hitsToFindings([{ RuleID: 'stripe-access-token', Secret: 'sk_live_abcdef013456789' }], false);
+const urlHits = hitsToFindings([{ RuleID: 'stripe-access-token', Secret: realRepoSecret }], false);
 check('loose-script secret stays secret_exposed', urlHits.some((f) => f.type === 'secret_exposed') && !urlHits.some((f) => f.params?.commit));
 
 if (failures > 0) {

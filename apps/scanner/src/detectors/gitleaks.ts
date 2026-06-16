@@ -45,6 +45,52 @@ const ROLELESS_JWT_DETAIL =
   'fixture, or a demo/example token (such as the well-known jwt.io sample). A Supabase admin key would ' +
   "decode to role:service_role and stay critical. Confirm it's a real, live credential before rotating.";
 
+const PLACEHOLDER_DETAIL =
+  'Low-confidence match: this value looks like a documentation example, a placeholder, or a test ' +
+  'fixture (an example marker word, or a sequential/repeated character run) rather than a live key. ' +
+  'gitleaks’ provider rules match on key *format*, so they fire on fake keys too (e.g. AWS’s ' +
+  "AKIA…EXAMPLE doc key). Confirm it's a real, active credential before rotating anything.";
+
+// Textual markers that only appear in fake/example/placeholder credentials, never
+// in a genuine random key. Case-insensitive; matched anywhere in the raw value.
+const PLACEHOLDER_WORD_RE =
+  /example|placeholder|dummy|sample|changeme|redacted|notreal|foobar|deadbeef|xxxx|your[_-]?(?:api[_-]?)?(?:key|token|secret)|replace[_-]?me|(?:test|fake)[_-]?(?:key|token|secret)/i;
+
+/**
+ * True when a run of `minRun` consecutive characters is strictly ascending,
+ * strictly descending, or identical (e.g. `abcdef`, `987654`, `aaaaaa`). Real
+ * keys are high-entropy and effectively never contain such runs; placeholders and
+ * hand-typed test values (`sk_live_abcdef0123456789`) routinely do.
+ */
+function hasMonotonicRun(s: string, minRun = 6): boolean {
+  let asc = 1;
+  let desc = 1;
+  let rep = 1;
+  for (let i = 1; i < s.length; i += 1) {
+    const prev = s.charCodeAt(i - 1);
+    const cur = s.charCodeAt(i);
+    asc = cur === prev + 1 ? asc + 1 : 1;
+    desc = cur === prev - 1 ? desc + 1 : 1;
+    rep = cur === prev ? rep + 1 : 1;
+    if (asc >= minRun || desc >= minRun || rep >= minRun) return true;
+  }
+  return false;
+}
+
+/**
+ * Decide whether a provider-format match is almost certainly NOT a live secret:
+ * a doc example, a placeholder, or a test fixture (including this scanner's own
+ * detector fixtures). gitleaks' precise rules (Stripe, AWS, GitHub, …) match on
+ * format, so they happily fire on these non-keys and would otherwise be reported
+ * as a screaming `critical`. We don't drop them (a real key COULD live in a test
+ * file) — the caller demotes them to a `low`, `unverified` finding instead.
+ */
+function looksLikePlaceholder(raw: string): boolean {
+  if (!raw) return false;
+  if (PLACEHOLDER_WORD_RE.test(raw)) return true;
+  return hasMonotonicRun(raw);
+}
+
 /**
  * If a hit's secret is a Supabase JWT, return its `role` claim (anon |
  * authenticated | service_role | …). Lets us tell a public-by-design anon key
@@ -89,8 +135,12 @@ export function hitsToFindings(hits: GitleaksHit[], withLocation: boolean): Find
     // admin key always decodes to role:service_role above, so demoting these never
     // hides a genuine leak. (anon/authenticated were already dropped just above.)
     const rolelessJwt = !role && hit.RuleID === 'jwt';
+    // A provider-format match (Stripe, AWS, …) on an obvious example/placeholder/
+    // test-fixture value: the rule is precise, but the value isn't a real key.
+    const placeholder = !isServiceRole && looksLikePlaceholder(raw);
     const lowConfidence =
-      !isServiceRole && (LOW_CONFIDENCE_RULES.has(hit.RuleID ?? '') || rolelessJwt);
+      !isServiceRole &&
+      (LOW_CONFIDENCE_RULES.has(hit.RuleID ?? '') || rolelessJwt || placeholder);
     const provider = isServiceRole
       ? 'Supabase service_role'
       : hit.RuleID ?? hit.Description ?? 'secret';
@@ -126,7 +176,11 @@ export function hitsToFindings(hits: GitleaksHit[], withLocation: boolean): Find
     if (lowConfidence) {
       finding.verification = {
         status: 'unverified',
-        detail: rolelessJwt ? ROLELESS_JWT_DETAIL : LOW_CONFIDENCE_DETAIL,
+        detail: placeholder
+          ? PLACEHOLDER_DETAIL
+          : rolelessJwt
+            ? ROLELESS_JWT_DETAIL
+            : LOW_CONFIDENCE_DETAIL,
       };
     }
     findings.push(finding);
