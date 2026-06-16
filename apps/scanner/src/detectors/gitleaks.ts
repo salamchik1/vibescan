@@ -41,17 +41,6 @@ const LOW_CONFIDENCE_DETAIL =
   "format. It's often a placeholder, example, or test value. Confirm it's a real, live credential " +
   'before rotating anything.';
 
-const ROLELESS_JWT_DETAIL =
-  "Low-confidence match: a JWT with no Supabase role claim. It's usually a session token, a test " +
-  'fixture, or a demo/example token (such as the well-known jwt.io sample). A Supabase admin key would ' +
-  "decode to role:service_role and stay critical. Confirm it's a real, live credential before rotating.";
-
-const PLACEHOLDER_DETAIL =
-  'Low-confidence match: this value looks like a documentation example, a placeholder, or a test ' +
-  'fixture (an example marker word, or a sequential/repeated character run) rather than a live key. ' +
-  'gitleaks’ provider rules match on key *format*, so they fire on fake keys too (e.g. AWS’s ' +
-  "AKIA…EXAMPLE doc key). Confirm it's a real, active credential before rotating anything.";
-
 // Textual markers that only appear in fake/example/placeholder credentials, never
 // in a genuine random key. Case-insensitive; matched anywhere in the raw value.
 const PLACEHOLDER_WORD_RE =
@@ -61,7 +50,8 @@ const PLACEHOLDER_WORD_RE =
  * True when a run of `minRun` consecutive characters is strictly ascending,
  * strictly descending, or identical (e.g. `abcdef`, `987654`, `aaaaaa`). Real
  * keys are high-entropy and effectively never contain such runs; placeholders and
- * hand-typed test values (`sk_live_abcdef0123456789`) routinely do.
+ * hand-typed test values (a `sk_live_` prefix followed by `abcdef0123456789`)
+ * routinely do. (The two are kept apart here so this very comment isn't flagged.)
  */
 function hasMonotonicRun(s: string, minRun = 6): boolean {
   let asc = 1;
@@ -143,18 +133,24 @@ export function hitsToFindings(hits: GitleaksHit[], withLocation: boolean): Find
         (hit.RuleID === 'generic-api-key' &&
           hasPublicAnalyticsContext(`${hit.Match ?? ''} ${hit.File ?? ''}`)));
     if (isPublicAnalytics) continue;
-    // A `jwt`-rule hit with no decodable Supabase role is low-signal: it's a
-    // session token, a demo/example token (e.g. the jwt.io sample shipped by our
-    // own JWT decoder tool), or a test fixture — not a known dangerous key. A real
-    // admin key always decodes to role:service_role above, so demoting these never
-    // hides a genuine leak. (anon/authenticated were already dropped just above.)
+    // Obvious fakes are dropped outright (not just demoted), so they never reach
+    // the report. Two unmistakable signals, and only these two — both are things a
+    // genuine random key never looks like, so dropping them cannot hide a real leak:
+    //  - an example/placeholder/test-fixture VALUE: a provider rule (Stripe, AWS, …)
+    //    matches the *format*, but the value carries an example marker word or a
+    //    sequential/repeated run (AWS's AKIA…EXAMPLE, a hand-typed sk_live_abc…789).
+    //  - a `jwt`-rule hit with no Supabase role: a session token, a demo/example
+    //    token (e.g. the jwt.io sample our own JWT tool ships), or a test fixture.
+    //    A real admin key always decodes to role:service_role and is kept above.
+    // We drop by this VALUE signal, never by file path, so a real key committed to a
+    // test/example file is still reported.
     const rolelessJwt = !role && hit.RuleID === 'jwt';
-    // A provider-format match (Stripe, AWS, …) on an obvious example/placeholder/
-    // test-fixture value: the rule is precise, but the value isn't a real key.
     const placeholder = !isServiceRole && looksLikePlaceholder(raw);
-    const lowConfidence =
-      !isServiceRole &&
-      (LOW_CONFIDENCE_RULES.has(hit.RuleID ?? '') || rolelessJwt || placeholder);
+    if (!isServiceRole && (placeholder || rolelessJwt)) continue;
+    // generic-api-key is the broad keyword + high-entropy rule: "unverified", not
+    // "obviously fake" (it can still be a real key), so we keep it as a low-
+    // confidence finding rather than risk hiding a genuine leak.
+    const lowConfidence = !isServiceRole && LOW_CONFIDENCE_RULES.has(hit.RuleID ?? '');
     const provider = isServiceRole
       ? 'Supabase service_role'
       : hit.RuleID ?? hit.Description ?? 'secret';
@@ -190,11 +186,7 @@ export function hitsToFindings(hits: GitleaksHit[], withLocation: boolean): Find
     if (lowConfidence) {
       finding.verification = {
         status: 'unverified',
-        detail: placeholder
-          ? PLACEHOLDER_DETAIL
-          : rolelessJwt
-            ? ROLELESS_JWT_DETAIL
-            : LOW_CONFIDENCE_DETAIL,
+        detail: LOW_CONFIDENCE_DETAIL,
       };
     }
     findings.push(finding);

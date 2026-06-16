@@ -81,7 +81,10 @@ const b64Js = `const apiKey = "${'AbC9/dEf2+'.repeat(4)}";`;
 const b64 = await detectSecrets({ ...collected, jsCombined: b64Js });
 check('does NOT flag base64 blobs as high-entropy secrets', !has(b64, (f) => /high-entropy/.test(f.summary)));
 // A genuinely random token DOES get flagged when a keyword sits right before it.
-const ctxJs = `const apiKey = "aB3xK9mZ2pQ7wL5vR8tN4cF6yH1jD0sGqW";`;
+// The token is assembled from fragments (like the gitleaks block below) so the
+// scanner doesn't match this very fixture when pointed at its own repo.
+const ctxToken = 'aB3xK9mZ2pQ7w' + 'L5vR8tN4cF' + '6yH1jD0sGqW';
+const ctxJs = `const apiKey = "${ctxToken}";`;
 const ctx = await detectSecrets({ ...collected, jsCombined: ctxJs });
 check('flags a high-entropy token that has secret context', has(ctx, (f) => /high-entropy/.test(f.summary) && f.severity === 'low'));
 
@@ -90,7 +93,9 @@ check('flags a high-entropy token that has secret context', has(ctx, (f) => /hig
 // vendor side, like a Supabase anon key). Even with a secret-ish keyword right
 // before it, the entropy fallback must NOT report it once it sits in a known
 // analytics loader context — that's the false alarm we're killing.
-const segmentToken = 'qZ7wL5vR8tN4cF6yH1jD0sGqWaB3xK9mZ2p';
+// Assembled from fragments (see the gitleaks note below) so this fixture isn't
+// flagged as a generic-api-key hit when the scanner is pointed at its own repo.
+const segmentToken = 'qZ7wL5vR8tN4c' + 'F6yH1jD0sG' + 'qWaB3xK9mZ2p';
 const segmentJs = `<script src="https://cdn.segment.com/analytics.js"></script>\nconst apiKey = "${segmentToken}";\nanalytics.load(apiKey);`;
 const segment = await detectSecrets({ ...collected, jsCombined: segmentJs });
 check('drops a Segment/analytics client key in loader context', !has(segment, (f) => /high-entropy/.test(f.summary)));
@@ -360,12 +365,11 @@ check('keeps a Supabase service_role JWT as critical', svcHits.some((f) => f.sev
 check('service_role finding never leaks the raw JWT', !svcHits.some((f) => (f.summary + (f.evidence ?? '')).includes(svcJwt)));
 
 // A roleless JWT (session/demo token, e.g. the jwt.io sample our JWT decoder
-// ships) is low-signal: surfaced, but as a `low` unverified finding, not a
-// screaming critical. Only role:service_role stays critical (checked above).
+// ships) is an obvious non-secret, so it's DROPPED — never shown. Only a real
+// admin key (role:service_role) stays critical (checked above).
 const plainJwt = `${b64url({ alg: 'HS256', typ: 'JWT' })}.${b64url({ sub: '1234567890', name: 'John Doe', iat: 1516239022 })}.c2lnbmF0dXJlX3Rlc3Q`;
 const plainHits = hitsToFindings([{ RuleID: 'jwt', Secret: plainJwt }], false);
-check('demotes a roleless JWT to low confidence', plainHits.some((f) => f.severity === 'low' && f.verification?.status === 'unverified'));
-check('roleless JWT is still surfaced (not dropped)', plainHits.length === 1);
+check('drops a roleless demo/session JWT entirely', plainHits.length === 0);
 
 // NOTE: every key-shaped fixture below is assembled at runtime (split string
 // fragments / template parts) so the full, contiguous literal never appears in
@@ -374,7 +378,7 @@ check('roleless JWT is still surfaced (not dropped)', plainHits.length === 1);
 
 // Repo-history hits are `secret_committed` (talks about commits), not the
 // browser-flavoured `secret_exposed`. A realistic, high-entropy provider-format
-// key stays critical — only fake/example values are demoted (tested below).
+// key stays critical — only obvious fake/example values are dropped (tested below).
 const realRepoSecret = `sk_live_${'R9kZqW7mNp3vXb'}${'2TfGcL8dHj'}`;
 const repoHits = hitsToFindings([{ RuleID: 'stripe-access-token', Secret: realRepoSecret, File: 'src/pay.ts', Commit: 'deadbeef00cafe' }], true);
 check('repo-history secret is typed secret_committed', repoHits.some((f) => f.type === 'secret_committed'));
@@ -384,15 +388,20 @@ check('repo-history secret is masked (no raw key)', !repoHits.some((f) => new Re
 
 // Placeholder / example / test-fixture secrets: gitleaks' provider rules match on
 // FORMAT, so they fire on fake keys too — doc examples (AWS's AKIA…EXAMPLE), our
-// own detector fixtures, hand-typed sequential values. These must NOT be a FIX-NOW
-// critical: demote to a low-confidence, unverified finding (surfaced, never screamed).
+// own detector fixtures, hand-typed sequential values. These are obvious fakes and
+// are DROPPED entirely (a real high-entropy key never carries an example marker or
+// a sequential/repeated run, so this can't hide a genuine leak).
 const seqPlaceholderKey = `sk_live_${'abcdef0123456789'}`;
 const seqPlaceholder = hitsToFindings([{ RuleID: 'stripe-access-token', Secret: seqPlaceholderKey, File: 'src/test-detectors.ts', Commit: 'cfae1b27aa' }], true);
-check('demotes a sequential placeholder key to low (kills the test-fixture false alarm)', seqPlaceholder.some((f) => f.severity === 'low' && f.verification?.status === 'unverified'));
-check('placeholder key is still surfaced (not dropped)', seqPlaceholder.length === 1);
+check('drops a sequential placeholder key (kills the test-fixture false alarm)', seqPlaceholder.length === 0);
 const awsExampleKey = `AKIA${'IOSFODNN7EXAMPLE'}`;
 const awsExample = hitsToFindings([{ RuleID: 'aws-access-token', Secret: awsExampleKey, File: 'README.md', Commit: 'beadfeed00cafe' }], true);
-check("demotes AWS's AKIA…EXAMPLE doc key to low", awsExample.some((f) => f.severity === 'low' && f.verification?.status === 'unverified'));
+check("drops AWS's AKIA…EXAMPLE doc key", awsExample.length === 0);
+// SAFETY GUARD: dropping is by VALUE, never by file path — a real high-entropy key
+// committed to a test/example file is still reported critical, so we don't hide a
+// genuine leak just because of where it lives.
+const realInTestFile = hitsToFindings([{ RuleID: 'stripe-access-token', Secret: realRepoSecret, File: 'src/auth.test.ts', Commit: 'abc1234567' }], true);
+check('keeps a real key even in a test-file path', realInTestFile.some((f) => f.severity === 'critical'));
 
 // Loose-script hits (no location) stay `secret_exposed` (shipped in page JS).
 const urlHits = hitsToFindings([{ RuleID: 'stripe-access-token', Secret: realRepoSecret }], false);
