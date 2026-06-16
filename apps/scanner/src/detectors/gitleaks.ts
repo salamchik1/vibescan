@@ -7,10 +7,12 @@ import type { Finding } from '@vibescan/findings';
 import type { CollectResult } from '../collector';
 import type { RepoContext } from '../repo/types';
 import { config } from '../config';
+import { maskSecret } from '../util/mask';
+import { extractJwts, jwtRole } from '../util/jwt';
 
 const execFileAsync = promisify(execFile);
 
-interface GitleaksHit {
+export interface GitleaksHit {
   RuleID?: string;
   Description?: string;
   Match?: string;
@@ -38,25 +40,74 @@ const LOW_CONFIDENCE_DETAIL =
   "format. It's often a placeholder, example, or test value. Confirm it's a real, live credential " +
   'before rotating anything.';
 
-/** Turn a list of gitleaks hits into deduped `secret_exposed` findings. */
-function hitsToFindings(hits: GitleaksHit[], withLocation: boolean): Finding[] {
+/**
+ * If a hit's secret is a Supabase JWT, return its `role` claim (anon |
+ * authenticated | service_role | …). Lets us tell a public-by-design anon key
+ * apart from the admin service_role key — gitleaks' broad `jwt` rule cannot.
+ */
+function supabaseJwtRole(...sources: Array<string | undefined>): string | null {
+  for (const src of sources) {
+    if (!src) continue;
+    for (const jwt of extractJwts(src)) {
+      const role = jwtRole(jwt);
+      if (role) return role;
+    }
+  }
+  return null;
+}
+
+/**
+ * Turn a list of gitleaks hits into deduped secret findings. `withLocation` is
+ * true only for the git-history scan: those carry file/commit and are reported
+ * as `secret_committed` (a secret baked into the repo's history), whereas the
+ * loose-script scan reports `secret_exposed` (a key shipped in the page's JS).
+ */
+export function hitsToFindings(hits: GitleaksHit[], withLocation: boolean): Finding[] {
   const seen = new Set<string>();
   const findings: Finding[] = [];
   for (const hit of hits) {
-    const provider = hit.RuleID ?? hit.Description ?? 'secret';
-    const masked = hit.Secret || hit.Match || '(redacted)';
+    const raw = hit.Secret || hit.Match || '';
+    const role = supabaseJwtRole(hit.Secret, hit.Match);
+
+    // Supabase anon / authenticated keys are JWTs that are PUBLIC by design:
+    // they ship to the browser and are gated by Row Level Security, not by
+    // secrecy. gitleaks' generic `jwt` rule flags them as a critical leak — a
+    // false positive. detectSecrets already omits them; do the same here so we
+    // don't scream about a key that is meant to be exposed. (service_role, the
+    // admin key, is the dangerous one and stays critical below.)
+    if (role === 'anon' || role === 'authenticated') continue;
+
+    const isServiceRole = role === 'service_role';
+    const lowConfidence = !isServiceRole && LOW_CONFIDENCE_RULES.has(hit.RuleID ?? '');
+    const provider = isServiceRole
+      ? 'Supabase service_role'
+      : hit.RuleID ?? hit.Description ?? 'secret';
+    const masked = /PRIVATE KEY/.test(raw)
+      ? '(private key block)'
+      : raw
+        ? maskSecret(raw)
+        : '(redacted)';
+
     const key = `${provider}::${masked}`;
     if (seen.has(key)) continue;
     seen.add(key);
+
     const params: Record<string, string> = { provider };
-    if (withLocation && hit.File) params.file = hit.File;
-    if (withLocation && hit.Commit) params.commit = hit.Commit.slice(0, 10);
-    const lowConfidence = LOW_CONFIDENCE_RULES.has(hit.RuleID ?? '');
+    if (withLocation) {
+      // Always fill both placeholders so the explanation never renders a literal
+      // {{file}}/{{commit}} on the rare hit that lacks them.
+      params.file = hit.File || 'your source';
+      params.commit = hit.Commit ? hit.Commit.slice(0, 10) : 'an earlier commit';
+    }
+
     const finding: Finding = {
-      type: 'secret_exposed',
-      severity: lowConfidence ? 'low' : 'critical',
+      type: withLocation ? 'secret_committed' : 'secret_exposed',
+      // service_role is a full-admin key: always critical, never demoted.
+      severity: isServiceRole ? 'critical' : lowConfidence ? 'low' : 'critical',
       category: 'secrets',
-      summary: `${provider} (${masked})`,
+      summary: isServiceRole
+        ? `Supabase service_role key (${masked}) — full admin access`
+        : `${provider} (${masked})`,
       evidence: masked,
       params,
     };
@@ -84,9 +135,13 @@ export async function runGitleaks(collected: CollectResult): Promise<Finding[]> 
       collected.scripts.map((s, i) => writeFile(join(dir!, `script-${i}.js`), s.content, 'utf8'))
     );
     const report = join(dir, 'report.json');
+    // No --redact: we need the raw match to tell a Supabase anon key (public by
+    // design) from a service_role key. We mask every secret ourselves in
+    // hitsToFindings, so no raw value ever reaches a Finding; the report file
+    // that briefly holds them is deleted in `finally`.
     await execFileAsync(
       'gitleaks',
-      ['detect', '--no-git', '-s', dir, '-f', 'json', '-r', report, '--redact', '--exit-code', '0'],
+      ['detect', '--no-git', '-s', dir, '-f', 'json', '-r', report, '--exit-code', '0'],
       { timeout: 20_000, maxBuffer: 16 * 1024 * 1024 }
     );
 
@@ -115,9 +170,11 @@ export async function runGitleaksRepo(ctx: RepoContext): Promise<Finding[]> {
     dir = await mkdtemp(join(tmpdir(), 'vibescan-glr-'));
     report = join(dir, 'report.json');
     // No --no-git: scan the commit history of the cloned working tree.
+    // No --redact either — see runGitleaks: we mask in hitsToFindings so we can
+    // first decode JWT roles and drop public-by-design anon keys.
     await execFileAsync(
       'gitleaks',
-      ['detect', '-s', ctx.dir, '-f', 'json', '-r', report, '--redact', '--exit-code', '0'],
+      ['detect', '-s', ctx.dir, '-f', 'json', '-r', report, '--exit-code', '0'],
       { timeout: 60_000, maxBuffer: 32 * 1024 * 1024 }
     );
 

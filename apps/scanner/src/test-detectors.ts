@@ -1,6 +1,7 @@
 import { detectSecrets } from './detectors/secrets';
 import { detectOwasp } from './detectors/owasp';
 import { detectIdor, harvestEndpoints, type Fetcher } from './detectors/idor';
+import { hitsToFindings, type GitleaksHit } from './detectors/gitleaks';
 import type { CollectResult } from './collector';
 import type { SafeFetchResult } from './util/fetch';
 import type { Probe, ProbeResponse } from './verify/liveness';
@@ -330,6 +331,30 @@ const uuidFetch: Fetcher = async (url) =>
   lastId(url) === uuidId ? json(200, { id: uuidId, owner: 'x', balance: 100 }) : json(404, { error: 'no' });
 const idorUuid = await detectIdor({ ...idorBase, jsCombined: `fetch('/api/accounts/${uuidId}')` }, uuidFetch);
 check('flags no-auth UUID object access as high (likely)', has(idorUuid, (f) => f.type === 'bola_idor' && f.severity === 'high'));
+
+// --- Gitleaks hit classification (JWT roles + repo vs URL wording) ----------
+// A Supabase anon JWT (public by design — gated by RLS, not secrecy) and a
+// service_role JWT (full admin). gitleaks' broad `jwt` rule fires on both.
+const anonJwt = `${b64url({ alg: 'HS256', typ: 'JWT' })}.${b64url({ role: 'anon', iss: 'supabase' })}.c2lnbmF0dXJlX3Rlc3Q`;
+const svcJwt = `${b64url({ alg: 'HS256', typ: 'JWT' })}.${b64url({ role: 'service_role', iss: 'supabase' })}.c2lnbmF0dXJlX3Rlc3Q`;
+
+const anonHits = hitsToFindings([{ RuleID: 'jwt', Secret: anonJwt, File: 'src/db.ts', Commit: 'abc1234567def' }], true);
+check('drops a public-by-design Supabase anon JWT (no false positive)', anonHits.length === 0);
+
+const svcHits = hitsToFindings([{ RuleID: 'jwt', Secret: svcJwt, File: 'src/db.ts', Commit: 'abc1234567def' }], true);
+check('keeps a Supabase service_role JWT as critical', svcHits.some((f) => f.severity === 'critical' && /service_role/.test(f.summary)));
+check('service_role finding never leaks the raw JWT', !svcHits.some((f) => (f.summary + (f.evidence ?? '')).includes(svcJwt)));
+
+// Repo-history hits are `secret_committed` (talks about commits), not the
+// browser-flavoured `secret_exposed`.
+const repoHits = hitsToFindings([{ RuleID: 'stripe-access-token', Secret: 'sk_live_abcdef013456789', File: 'src/pay.ts', Commit: 'deadbeef00cafe' }], true);
+check('repo-history secret is typed secret_committed', repoHits.some((f) => f.type === 'secret_committed'));
+check('secret_committed carries file + commit params', repoHits.some((f) => f.params?.file === 'src/pay.ts' && f.params?.commit === 'deadbeef00'));
+check('repo-history secret is masked (no raw key)', !repoHits.some((f) => /sk_live_abcdef013456789/.test(f.summary + (f.evidence ?? ''))));
+
+// Loose-script hits (no location) stay `secret_exposed` (shipped in page JS).
+const urlHits = hitsToFindings([{ RuleID: 'stripe-access-token', Secret: 'sk_live_abcdef013456789' }], false);
+check('loose-script secret stays secret_exposed', urlHits.some((f) => f.type === 'secret_exposed') && !urlHits.some((f) => f.params?.commit));
 
 if (failures > 0) {
   console.error(`\n${failures} detector test(s) failed.`);

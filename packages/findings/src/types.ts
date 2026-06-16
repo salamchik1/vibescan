@@ -73,8 +73,10 @@ export type FindingType =
   | 'exposed_config_file'
   | 'exposed_sourcemap'
   | 'clickjacking'
-  // Repository (source-code) scan finding types. `secret_exposed` is reused for
-  // secrets found in git history; these two are new to the repo scan.
+  // Repository (source-code) scan finding types. A secret found in the git
+  // history gets its own type (`secret_committed`) so its explanation can talk
+  // about commits and history purging rather than "public JavaScript".
+  | 'secret_committed'
   | 'sast_finding'
   | 'vulnerable_dependency';
 

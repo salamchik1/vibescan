@@ -122,6 +122,50 @@ app.post("/api/provider", async (req, res) => {
     ],
   },
 
+  secret_committed: {
+    title: 'Secret API key committed to your repository',
+    category: 'secrets',
+    defaultSeverity: 'critical',
+    whatItMeans:
+      'A private key ({{provider}}) is committed in your repository — found in {{file}} (commit {{commit}}). Anyone who can see the repo, and anyone who clones it, gets a full copy of this key and can use it as you: spend money, send emails, or read your data. Deleting it in a new commit is not enough — it stays readable in the git history until the key is rotated and the history is purged.',
+    fixInstruction:
+      'A {{provider}} secret is committed to my git repository (in {{file}}, commit {{commit}}). Rotate (regenerate) the key now since it must be treated as compromised, move it to a server-side environment variable, and remove it from the code. Then purge it from the git history — deleting it in a new commit leaves it readable in every earlier commit — using git filter-repo or BFG, and force-push the cleaned history.',
+    fixSteps:
+      '1) Rotate (regenerate) the {{provider}} key immediately — anyone with the repo already has it, so assume it is compromised. 2) Remove it from the code and load it from a server-only environment variable instead (never commit the new value). 3) Purge it from git history with git filter-repo or BFG — a plain deletion leaves it in every earlier commit — then force-push. 4) If the repo is or ever was public, rotate once more after cleaning, and check provider logs for unauthorized use.',
+    codeExamples: [
+      {
+        stack: 'Purge from git history',
+        language: 'bash',
+        note: 'Removing the file going forward is not enough — rewrite history so old commits no longer contain the secret.',
+        code: `# Option A — git filter-repo (recommended)
+#   pip install git-filter-repo
+git filter-repo --invert-paths --path {{file}}        # drop the leaking file from all history
+# or scrub just the secret string from every blob:
+git filter-repo --replace-text <(echo 'literal:THE_SECRET==>REMOVED')
+
+# Option B — BFG Repo-Cleaner
+#   https://rtyley.github.io/bfg-repo-cleaner/
+bfg --delete-files {{file}}
+git reflog expire --expire=now --all && git gc --prune=now --aggressive
+
+# Then force-push the rewritten history (coordinate with collaborators):
+git push --force --all`,
+      },
+      {
+        stack: 'Keep secrets out of git',
+        language: 'bash',
+        note: 'Store the rotated key in an env file that is never committed.',
+        code: `# .env  (local only — must be git-ignored, never committed)
+PROVIDER_API_KEY="ROTATED_VALUE"
+
+# .gitignore
+.env
+.env.*
+!.env.example`,
+      },
+    ],
+  },
+
   database_url_exposed: {
     title: 'Database connection string exposed in your code',
     category: 'secrets',
