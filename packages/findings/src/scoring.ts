@@ -19,23 +19,30 @@ export const ALL_CATEGORIES: Category[] = [
   'dependencies',
 ];
 
-/** Points subtracted from a perfect 100 per finding, by severity. Tune on real scans. */
+/**
+ * Points subtracted from a perfect 100 per finding, by severity. Tune on real scans.
+ * `low` is deliberately tiny and `info` is free: a low-confidence, often-unverified
+ * hardening note (a dev-only dep advisory, a placeholder that matched a secret rule)
+ * should shave at most a point, never alarm a client. Real exposure lives in the
+ * major tier (medium and up), which keeps its full weight.
+ */
 export const SEVERITY_WEIGHTS: Record<Severity, number> = {
   critical: 25,
   high: 15,
   medium: 7,
-  low: 3,
+  low: 1,
   info: 0,
 };
 
 /**
  * Low/info findings are "nice to know" hardening gaps, not real exposure, so we
- * cap their *combined* hit to the score. A pile of minor items can nudge a site
- * out of the green band, but can never drag it into red on its own — that band
- * is reserved for genuine critical/high/medium issues. Without this cap, 14
- * minor findings (−42) outweigh a critical + high combined, which is wrong.
+ * cap their *combined* hit to the score. The cap is set below a single `medium`'s
+ * weight, which gives two guarantees: a pile of minor items can never outweigh even
+ * one genuine major finding, and the minor tier on its own can never knock a site
+ * below an A / out of the green band (100 − 6 = 94). That keeps a report full of
+ * unverified, low-confidence noise from scaring a client whose app is actually fine.
  */
-export const MINOR_DEDUCTION_CAP = 25;
+export const MINOR_DEDUCTION_CAP = 6;
 
 /** Severities treated as "minor" (their deduction is capped, see above). */
 const MINOR_SEVERITIES: ReadonlySet<Severity> = new Set<Severity>(['low', 'info']);
