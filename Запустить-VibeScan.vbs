@@ -7,7 +7,10 @@
 Option Explicit
 
 Dim sh, fso, root, url, i, needSetup
-url = "http://localhost:3000"
+' Что открыть в браузере: публичный сайт на Vercel (не локальный localhost:3000).
+' Локальные серверы ниже всё равно поднимаются - они нужны, чтобы публичный сайт
+' мог сканировать через туннель (Vercel -> localtunnel -> этот ПК).
+url = "https://vibescan-web.vercel.app"
 
 Set sh  = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
