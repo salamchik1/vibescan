@@ -48,9 +48,13 @@ export const config = {
   repoMaxFiles: num('SCANNER_REPO_MAX_FILES', 20_000),
   // Skip individual files larger than this when handing paths to SAST/OSV.
   repoMaxFileBytes: num('SCANNER_REPO_MAX_FILE_BYTES', 2_000_000),
-  // Pinned Semgrep ruleset. A registry pack (e.g. p/owasp-top-ten, p/default)
-  // is reproducible; `auto` is not. Override with SCANNER_SEMGREP_CONFIG.
-  semgrepConfig: process.env.SCANNER_SEMGREP_CONFIG?.trim() || 'p/owasp-top-ten',
+  // Pinned Semgrep rulesets. Registry packs (e.g. p/owasp-top-ten, p/default)
+  // are reproducible; `auto` is not. Comma-separated — each pack is expanded
+  // into its own `--config` flag, so we cover ~3500+ patterns without writing
+  // our own rules. Override with SCANNER_SEMGREP_CONFIG.
+  semgrepConfig:
+    process.env.SCANNER_SEMGREP_CONFIG?.trim() ||
+    'p/default,p/owasp-top-ten,p/secrets,p/javascript,p/react',
 };
 
 export const SCANNER_VERSION = '0.3.0';

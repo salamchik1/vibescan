@@ -33,8 +33,87 @@ function looksBinary(body: string): boolean {
   return /[\x00-\x08\x0e\x0f]/.test(body.slice(0, 1024));
 }
 
-const ENV_PATHS = ['/.env', '/.env.local', '/.env.production', '/.env.development', '/.env.prod'];
+const ENV_PATHS = [
+  '/.env',
+  '/.env.local',
+  '/.env.production',
+  '/.env.development',
+  '/.env.prod',
+  '/.env.backup',
+];
 const GIT_PATHS = ['/.git/config', '/.git/HEAD'];
+
+/** Body looks like JSON (by content-type or a leading brace/bracket). */
+function looksLikeJson(hit: ProbeHit): boolean {
+  if (/json/i.test(hit.headers['content-type'] ?? '')) return true;
+  const t = hit.body.trim();
+  return t.startsWith('{') || t.startsWith('[');
+}
+
+/**
+ * Misc. exposed files/endpoints with a per-path content check so we don't fire
+ * on a generic 200 (the SPA fallback is already filtered out by probe()).
+ */
+interface ExposedPath {
+  path: string;
+  type: Finding['type'];
+  severity: Finding['severity'];
+  summary: string;
+  validate: (hit: ProbeHit) => boolean;
+}
+
+const EXPOSED_PATHS: ExposedPath[] = [
+  {
+    path: '/swagger.json',
+    type: 'exposed_api_spec',
+    severity: 'low',
+    summary: 'Your API specification (/swagger.json) is publicly accessible, revealing every endpoint.',
+    validate: looksLikeJson,
+  },
+  {
+    path: '/openapi.json',
+    type: 'exposed_api_spec',
+    severity: 'low',
+    summary: 'Your API specification (/openapi.json) is publicly accessible, revealing every endpoint.',
+    validate: looksLikeJson,
+  },
+  {
+    path: '/.vscode/settings.json',
+    type: 'exposed_config_file',
+    severity: 'low',
+    summary: 'Your /.vscode/ editor config is exposed, revealing project tooling and local paths.',
+    validate: looksLikeJson,
+  },
+  {
+    path: '/config.json',
+    type: 'exposed_config_file',
+    severity: 'medium',
+    summary: 'A /config.json file is publicly downloadable and may contain application secrets.',
+    validate: looksLikeJson,
+  },
+  {
+    path: '/phpinfo.php',
+    type: 'exposed_config_file',
+    severity: 'medium',
+    summary: 'A phpinfo() page is exposed, leaking PHP version, server paths, and environment details.',
+    validate: (h) => /<title>phpinfo\(\)|PHP Version\b|php_uname|\$_SERVER/i.test(h.body),
+  },
+  {
+    path: '/server-status',
+    type: 'exposed_config_file',
+    severity: 'medium',
+    summary: 'Apache /server-status is public, revealing live requests, client IPs, and server internals.',
+    validate: (h) => /Apache Server Status|Server uptime|Total accesses/i.test(h.body),
+  },
+  {
+    path: '/.git/credentials',
+    type: 'exposed_config_file',
+    severity: 'critical',
+    summary:
+      'A Git credentials store (/.git/credentials) is publicly downloadable, exposing plaintext passwords.',
+    validate: (h) => /https?:\/\/[^/\s:]+:[^@\s]+@/.test(h.body),
+  },
+];
 const BACKUP_PATHS = [
   '/backup.sql',
   '/dump.sql',
@@ -55,11 +134,12 @@ export async function detectFiles(collected: CollectResult): Promise<Finding[]> 
   const findings: Finding[] = [];
 
   // Probe everything in parallel; each request has its own timeout.
-  const [envHits, gitHits, backupHits, npmrc, dockerCompose, dsStore, awsCreds, wpConfig] =
+  const [envHits, gitHits, backupHits, miscHits, npmrc, dockerCompose, dsStore, awsCreds, wpConfig] =
     await Promise.all([
       Promise.all(ENV_PATHS.map((p) => probe(origin + p).then((h) => [p, h] as const))),
       Promise.all(GIT_PATHS.map((p) => probe(origin + p).then((h) => [p, h] as const))),
       Promise.all(BACKUP_PATHS.map((p) => probe(origin + p).then((h) => [p, h] as const))),
+      Promise.all(EXPOSED_PATHS.map((e) => probe(origin + e.path).then((h) => [e, h] as const))),
       probe(origin + '/.npmrc'),
       probe(origin + '/docker-compose.yml'),
       probe(origin + '/.DS_Store'),
@@ -171,6 +251,19 @@ export async function detectFiles(collected: CollectResult): Promise<Finding[]> 
       summary: 'Your wp-config.php is served as plain text, exposing database credentials.',
       evidence: '/wp-config.php → 200',
       params: { path: '/wp-config.php' },
+    });
+  }
+
+  // 5) Misc. exposed files/endpoints (API specs, editor config, phpinfo, etc.).
+  for (const [entry, hit] of miscHits) {
+    if (!hit || !entry.validate(hit)) continue;
+    findings.push({
+      type: entry.type,
+      severity: entry.severity,
+      category: 'owasp',
+      summary: entry.summary,
+      evidence: `${entry.path} → 200`,
+      params: { path: entry.path },
     });
   }
 

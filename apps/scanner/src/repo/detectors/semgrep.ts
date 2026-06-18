@@ -61,10 +61,16 @@ function shortRule(checkId: string): string {
 export async function detectSemgrepRepo(ctx: RepoContext): Promise<Finding[]> {
   if (!config.useSemgrep) return [];
 
+  // Each comma-separated pack becomes its own `--config` flag.
+  const configFlags = config.semgrepConfig
+    .split(',')
+    .map((c) => c.trim())
+    .filter(Boolean)
+    .flatMap((c) => ['--config', c]);
+
   const args = [
     'scan',
-    '--config',
-    config.semgrepConfig,
+    ...configFlags,
     '--json',
     '--quiet',
     '--no-git-ignore', // we control the tree; scan what we cloned
