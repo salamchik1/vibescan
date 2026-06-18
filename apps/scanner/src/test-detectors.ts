@@ -135,6 +135,24 @@ const ctxJs = `const apiKey = "${ctxToken}";`;
 const ctx = await detectSecrets({ ...collected, jsCombined: ctxJs });
 check('flags a high-entropy token that has secret context', has(ctx, (f) => /high-entropy/.test(f.summary) && f.severity === 'low'));
 
+// --- Truncated / placeholder example keys in docs (the zeriflow.com case) ---
+// A product's own marketing page shows the SHAPE of an API key in a curl snippet,
+// truncated with an ellipsis (`-H "X-API-Key: sk_live_…"`). The regex stops at the
+// ".", so the captured token never includes the dots — we look at the text right
+// after the match. These are not leaks and must be dropped.
+const truncStripeJs = `curl -H "Authorization: Bearer sk_live_${'A1b2C3d4'.repeat(2)}..."`;
+const truncated = await detectSecrets({ ...collected, jsCombined: truncStripeJs });
+check('drops a truncated example key shown with an ellipsis (curl docs)', !has(truncated, (f) => /Stripe live/.test(f.summary)));
+// SAFETY GUARD: the SAME key without the trailing ellipsis is still flagged — it's
+// the truncation doing the work, not the key being unmatchable.
+const fullStripeJs = `const k = "sk_live_${'A1b2C3d4'.repeat(2)}";`;
+const fullStripe = await detectSecrets({ ...collected, jsCombined: fullStripeJs });
+check('still flags the same key when it is NOT truncated', has(fullStripe, (f) => /Stripe live/.test(f.summary)));
+// A token that literally spells out a filler word is dropped even with secret context.
+const fillerJs = `const apiKey = "YOUR_API_KEY_aB3xK9mZ2pQ7wL5vR8tN";`;
+const filler = await detectSecrets({ ...collected, jsCombined: fillerJs });
+check('drops a YOUR_API_KEY-style placeholder token', !has(filler, (f) => /high-entropy/.test(f.summary)));
+
 // --- Public-by-design analytics keys: dropped, not screamed -----------------
 // A Segment/Ahrefs client key is MEANT to ship in the page (rate-limited on the
 // vendor side, like a Supabase anon key). Even with a secret-ish keyword right

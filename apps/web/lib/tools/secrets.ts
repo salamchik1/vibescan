@@ -136,6 +136,26 @@ function classifyGoogleKey(text: string, index: number): 'publishable' | 'unknow
   return GOOGLE_PUBLISHABLE_CONTEXT_RE.test(text.slice(start, end)) ? 'publishable' : 'unknown';
 }
 
+// Obviously-fake filler inside the captured token itself (xxxx, ****, ••, YOUR_API_KEY…).
+// Deliberately narrow: only words that NEVER occur inside a genuine credential — not
+// "example"/"dummy"/"sample", which can be a substring of a format-valid key we still
+// want to surface in pasted code.
+const PLACEHOLDER_TOKEN_RE =
+  /x{4,}|\*{3,}|•{2,}|your[-_]?(?:api[-_]?)?(?:key|token|secret)|placeholder|redacted|changeme|replace[-_]?me/i;
+
+/**
+ * True when a match is really a documentation placeholder, not a live secret: a truncated
+ * example key from a curl/X-API-Key snippet ("zf_live_af9e..."), or a token that spells out
+ * a filler word. Regex char-classes stop at the ".", so the captured token never includes the
+ * trailing ellipsis — we check the text right after the match. A real key is never written
+ * `"...secret..."` in source, so this can't hide an actual leak.
+ */
+function isPlaceholderMatch(text: string, raw: string, index: number): boolean {
+  const after = text.slice(index + raw.length, index + raw.length + 3);
+  if (after.startsWith('...') || after.startsWith('…')) return true;
+  return PLACEHOLDER_TOKEN_RE.test(raw);
+}
+
 /** Filters out common high-entropy strings that are not secrets. */
 function looksLikeNonSecret(raw: string): boolean {
   if (/^[0-9a-f]+$/i.test(raw) && [32, 40, 56, 64, 96, 128].includes(raw.length)) return true;
@@ -178,6 +198,8 @@ export function scanForSecrets(text: string): ScanResult {
     for (const m of text.matchAll(rule.re)) {
       const raw = m[0];
       if (matchedRaws.includes(raw)) continue;
+      // Skip truncated/templated example keys from docs (e.g. `X-API-Key: zf_live_af9e...`).
+      if (isPlaceholderMatch(text, raw, m.index ?? 0)) continue;
       matchedRaws.push(raw);
       let severity = rule.severity;
       // Google keys are publishable by design for browser SDKs (see classifyGoogleKey):
@@ -208,6 +230,7 @@ export function scanForSecrets(text: string): ScanResult {
     const raw = m[0];
     if (matchedRaws.some((mr) => mr.includes(raw) || raw.includes(mr))) continue;
     if (looksLikeNonSecret(raw)) continue;
+    if (m.index !== undefined && isPlaceholderMatch(text, raw, m.index)) continue;
     if (shannonEntropy(raw) < ENTROPY_THRESHOLD) continue;
     entropyCount++;
     add('High-entropy token', 'low', mask(raw), m.index ?? 0);

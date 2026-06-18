@@ -144,6 +144,28 @@ function hasSecretContext(text: string, index: number): boolean {
   return CONTEXT_KEYWORD_RE.test(text.slice(start, index));
 }
 
+// Obviously-fake filler inside the captured token itself (xxxx, ****, ••, YOUR_API_KEY…).
+// Deliberately narrow: only words that NEVER occur inside a genuine credential. We do NOT
+// include "example"/"dummy"/"sample" here — on a live-JS scan we keep format-valid keys
+// even when they carry such a substring (e.g. AWS's own AKIA…EXAMPLE), and the broader
+// example/sequential drop already lives in the repo-history path (gitleaks looksLikePlaceholder).
+const PLACEHOLDER_TOKEN_RE =
+  /x{4,}|\*{3,}|•{2,}|your[-_]?(?:api[-_]?)?(?:key|token|secret)|placeholder|redacted|changeme|replace[-_]?me/i;
+
+/**
+ * True when a match is really a documentation/marketing placeholder, not a live secret:
+ * a truncated example key shown in a curl/X-API-Key snippet ("zf_live_af9e..."), or a
+ * token that literally spells out a filler word. Regex char-classes stop at the ".", so
+ * the captured token never includes the trailing ellipsis — we check it against the text
+ * immediately after the match, not the token. A real key is never written `"...secret..."`
+ * in source, so this can't hide an actual leak.
+ */
+function isPlaceholderMatch(text: string, raw: string, index: number): boolean {
+  const after = text.slice(index + raw.length, index + raw.length + 3);
+  if (after.startsWith('...') || after.startsWith('…')) return true;
+  return PLACEHOLDER_TOKEN_RE.test(raw);
+}
+
 // --- Google API key classification ------------------------------------------
 // A Google "AIza…" key is NOT automatically a leak. Google publishes these for
 // the browser (Firebase web config, Maps JavaScript API, Sign-In / GSI): they are
@@ -189,6 +211,8 @@ export async function detectSecrets(
       const raw = m[0];
       // Skip a raw value already claimed by an earlier, more specific rule.
       if (matchedRaws.includes(raw)) continue;
+      // Skip truncated/templated example keys from docs (e.g. `X-API-Key: zf_live_af9e...`).
+      if (isPlaceholderMatch(text, raw, m.index ?? 0)) continue;
       matchedRaws.push(raw);
 
       let severity = rule.severity;
@@ -276,6 +300,7 @@ export async function detectSecrets(
     // Skip anything already reported by a specific rule (avoid double-counting).
     if (matchedRaws.some((mr) => mr.includes(raw) || raw.includes(mr))) continue;
     if (looksLikeNonSecret(raw)) continue;
+    if (m.index !== undefined && isPlaceholderMatch(text, raw, m.index)) continue;
     if (shannonEntropy(raw) < ENTROPY_THRESHOLD) continue;
     // Require a nearby secret-ish keyword: this is what separates a real exposed
     // credential from random build/asset blobs on large third-party sites.
