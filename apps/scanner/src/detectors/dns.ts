@@ -188,15 +188,23 @@ export async function detectDns(
   if (!isPlatformSubdomain(host)) {
     const apex = apexGuess(host);
     let hasCaa = false;
+    let inconclusive = false;
     // A CAA record on any ancestor covers everything below it, so climb the tree.
     for (const name of ancestorsToApex(host)) {
-      const records = await resolveCaa(name);
-      if (records.length > 0) {
-        hasCaa = true;
+      try {
+        const records = await resolveCaa(name);
+        if (records.length > 0) {
+          hasCaa = true;
+          break;
+        }
+      } catch {
+        // A timed-out/failed lookup is inconclusive — never report "no CAA" off
+        // a resolver that simply didn't answer (would be a false positive).
+        inconclusive = true;
         break;
       }
     }
-    if (!hasCaa) {
+    if (!hasCaa && !inconclusive) {
       findings.push({
         type: 'caa_missing',
         severity: 'low',
@@ -208,54 +216,67 @@ export async function detectDns(
   }
 
   // --- 2) Dangling CNAME / subdomain takeover --------------------------------
-  const candidates = opts.candidateHosts ?? candidateHosts(host);
-  const seen = new Set<string>();
-  for (const cand of candidates) {
-    if (seen.has(cand)) continue;
-    seen.add(cand);
-
-    let targets: string[];
-    try {
-      targets = await resolveCname(cand);
-    } catch {
-      continue; // resolver error — stay silent rather than risk a false alarm
-    }
-    if (!targets.length) continue;
-
-    const service = matchTakeoverService(targets);
-    if (service) {
-      const { matched, svc } = service;
-      const confirmed = await isUnclaimed(svc, matched, cand, host, collected, hostResolves, fetchBody);
-      if (confirmed) {
-        findings.push({
-          type: 'subdomain_takeover',
-          severity: 'high',
-          category: 'infra',
-          summary: `${cand} points to an unclaimed ${svc.name} slot (${matched}) — an attacker can re-register it and serve content from your domain.`,
-          evidence: `CNAME ${cand} → ${matched}`,
-          params: { host: cand, service: svc.name, target: matched },
-        });
-      }
-      continue;
-    }
-
-    // No known service: a CNAME whose target no longer exists is a stale/dangling
-    // record. Factually broken and a takeover candidate, but unconfirmed — low.
-    const target = targets[0] ?? '';
-    const resolves = await hostResolves(target);
-    if (resolves === false) {
-      findings.push({
-        type: 'dangling_dns',
-        severity: 'low',
-        category: 'infra',
-        summary: `${cand} has a CNAME to ${target}, which no longer exists — a stale/dangling DNS record worth removing or re-pointing.`,
-        evidence: `CNAME ${cand} → ${target} (NXDOMAIN)`,
-        params: { host: cand, target },
-      });
-    }
-  }
+  // Probe candidates concurrently: a slow/filtered resolver then bounds this by
+  // the slowest single host, not the sum of ~18 sequential lookups (which on a
+  // sluggish network blew past the whole scan budget).
+  const candidates = [...new Set(opts.candidateHosts ?? candidateHosts(host))];
+  const perCandidate = await Promise.all(
+    candidates.map((cand) => checkCandidate(cand, host, collected, { resolveCname, hostResolves, fetchBody }))
+  );
+  findings.push(...perCandidate.flat());
 
   return findings;
+}
+
+/** Inspect one candidate host for a confirmed takeover or a dangling CNAME. */
+async function checkCandidate(
+  cand: string,
+  host: string,
+  collected: CollectResult,
+  io: {
+    resolveCname: NonNullable<DetectDnsOptions['resolveCname']>;
+    hostResolves: NonNullable<DetectDnsOptions['hostResolves']>;
+    fetchBody: NonNullable<DetectDnsOptions['fetchBody']>;
+  }
+): Promise<Finding[]> {
+  let targets: string[];
+  try {
+    targets = await io.resolveCname(cand);
+  } catch {
+    return []; // resolver error — stay silent rather than risk a false alarm
+  }
+  if (!targets.length) return [];
+
+  const service = matchTakeoverService(targets);
+  if (service) {
+    const { matched, svc } = service;
+    const confirmed = await isUnclaimed(svc, matched, cand, host, collected, io.hostResolves, io.fetchBody);
+    if (!confirmed) return [];
+    return [{
+      type: 'subdomain_takeover',
+      severity: 'high',
+      category: 'infra',
+      summary: `${cand} points to an unclaimed ${svc.name} slot (${matched}) — an attacker can re-register it and serve content from your domain.`,
+      evidence: `CNAME ${cand} → ${matched}`,
+      params: { host: cand, service: svc.name, target: matched },
+    }];
+  }
+
+  // No known service: a CNAME whose target no longer exists is a stale/dangling
+  // record. Factually broken and a takeover candidate, but unconfirmed — low.
+  const target = targets[0] ?? '';
+  const resolves = await io.hostResolves(target);
+  if (resolves === false) {
+    return [{
+      type: 'dangling_dns',
+      severity: 'low',
+      category: 'infra',
+      summary: `${cand} has a CNAME to ${target}, which no longer exists — a stale/dangling DNS record worth removing or re-pointing.`,
+      evidence: `CNAME ${cand} → ${target} (NXDOMAIN)`,
+      params: { host: cand, target },
+    }];
+  }
+  return [];
 }
 
 /** The takeover-prone candidate hosts: the scanned host plus common subdomains under its apex. */
@@ -308,19 +329,40 @@ async function isUnclaimed(
 
 // --- Default (production) resolvers -----------------------------------------
 
-/** Real CAA resolver: swallow NXDOMAIN/ENODATA as "no CAA records". */
+// node:dns has no built-in deadline, so a slow or filtered resolver can stall a
+// lookup for 20-30s (c-ares retries). Race every query against a hard cap so the
+// detector stays responsive; a timeout is surfaced as a rejection so callers can
+// treat it as inconclusive rather than as "no record" (which would false-alarm).
+const DNS_TIMEOUT_MS = 4_000;
+
+class DnsTimeoutError extends Error {
+  constructor() {
+    super('DNS lookup timed out');
+    this.name = 'DnsTimeoutError';
+  }
+}
+
+function withDnsTimeout<T>(p: Promise<T>): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new DnsTimeoutError()), DNS_TIMEOUT_MS)),
+  ]);
+}
+
+/** Real CAA resolver: swallow NXDOMAIN/ENODATA as "no CAA records"; rethrow timeouts as inconclusive. */
 const defaultResolveCaa = async (host: string): Promise<CaaRecord[]> => {
   try {
-    return (await dnsResolveCaa(host)) as CaaRecord[];
-  } catch {
-    return [];
+    return (await withDnsTimeout(dnsResolveCaa(host))) as CaaRecord[];
+  } catch (err) {
+    if (err instanceof DnsTimeoutError) throw err; // inconclusive — caller skips
+    return []; // NXDOMAIN/ENODATA = genuinely no CAA
   }
 };
 
-/** Real CNAME resolver: swallow NXDOMAIN/ENODATA as "no CNAME". */
+/** Real CNAME resolver: swallow NXDOMAIN/ENODATA/timeout as "no CNAME". */
 const defaultResolveCname = async (host: string): Promise<string[]> => {
   try {
-    return await dnsResolveCname(host);
+    return await withDnsTimeout(dnsResolveCname(host));
   } catch {
     return [];
   }
@@ -337,12 +379,13 @@ const defaultHostResolves = async (host: string): Promise<boolean | null> => {
   return null; // a SERVFAIL/timeout on either — don't risk a false positive
 };
 
-/** Resolve helper: true=got records, false=NXDOMAIN/ENODATA, null=other (transient) error. */
+/** Resolve helper: true=got records, false=NXDOMAIN/ENODATA, null=other (transient/timeout) error. */
 async function tryResolve(fn: () => Promise<string[]>): Promise<boolean | null> {
   try {
-    const addrs = await fn();
+    const addrs = await withDnsTimeout(fn());
     return addrs.length > 0;
   } catch (err) {
+    if (err instanceof DnsTimeoutError) return null; // inconclusive, not NXDOMAIN
     const code = (err as NodeJS.ErrnoException).code;
     if (code === 'ENOTFOUND' || code === 'ENODATA') return false;
     return null;

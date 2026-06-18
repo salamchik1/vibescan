@@ -44,16 +44,25 @@ function dedupe(findings: Finding[]): Finding[] {
   return out.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
 }
 
-/** Run one detector, capturing failures as notes instead of aborting the whole scan. */
+// Per-detector backstop. Detectors run concurrently, but a single one that
+// hangs (e.g. a network/DNS probe on a slow or filtered resolver) would
+// otherwise hold the whole scan hostage until the outer config.timeoutMs fires
+// and the entire scan fails. Capping each detector lets a slow one drop out as a
+// note while the rest of the scan completes normally.
+const DETECTOR_TIMEOUT_MS = 30_000;
+
+/** Run one detector, capturing failures (and hangs) as notes instead of aborting the whole scan. */
 export async function safe<T extends Finding[]>(
   name: string,
   fn: () => Promise<T> | T,
-  notes: string[]
+  notes: string[],
+  timeoutMs: number = DETECTOR_TIMEOUT_MS
 ): Promise<Finding[]> {
   try {
-    return await fn();
+    return await withTimeout(Promise.resolve(fn()), timeoutMs);
   } catch (err) {
-    notes.push(`${name} check failed: ${(err as Error).message}`);
+    const msg = err instanceof TimeoutError ? `timed out after ${Math.round(timeoutMs / 1000)}s` : (err as Error).message;
+    notes.push(`${name} check failed: ${msg}`);
     return [];
   }
 }
