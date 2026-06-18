@@ -66,6 +66,7 @@ export const CATEGORY_OK: Record<Category, string> = {
   database: 'No openly readable database detected',
   auth: 'No obvious authentication gaps found',
   owasp: 'Basic web hardening looks OK',
+  infra: 'Email & TLS hygiene looks OK',
   code: 'No risky code patterns found',
   dependencies: 'No known-vulnerable dependencies found',
 };
@@ -84,6 +85,7 @@ export const CATEGORY_LABEL: Record<Category, string> = {
   database: 'Database',
   auth: 'Auth & access',
   owasp: 'Web hardening',
+  infra: 'Email & TLS',
   code: 'Code (SAST)',
   dependencies: 'Dependencies',
 };

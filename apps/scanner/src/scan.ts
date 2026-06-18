@@ -9,6 +9,8 @@ import { detectOwasp, detectSourceMaps } from './detectors/owasp';
 import { detectFiles } from './detectors/files';
 import { detectGraphql } from './detectors/graphql';
 import { detectIdor } from './detectors/idor';
+import { detectEmail } from './detectors/email';
+import { detectTls } from './detectors/tls';
 import { runGitleaks } from './detectors/gitleaks';
 import { config, SCANNER_VERSION } from './config';
 
@@ -102,6 +104,8 @@ export async function runScan(rawUrl: string): Promise<ScanResult> {
         safe('OWASP', () => detectOwasp(collected), notes),
         safe('Exposed files', () => detectFiles(collected), notes),
         safe('GraphQL', () => detectGraphql(collected), notes),
+        safe('Email auth', () => detectEmail(collected), notes),
+        safe('TLS hygiene', () => detectTls(collected), notes),
       ]);
       const findings: Finding[] = groups.flat();
 

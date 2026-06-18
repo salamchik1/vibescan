@@ -1,5 +1,7 @@
 import { detectSecrets } from './detectors/secrets';
 import { detectOwasp } from './detectors/owasp';
+import { detectEmail, type TxtResolver } from './detectors/email';
+import { detectTls, type TlsInspection, type HttpRedirectResult } from './detectors/tls';
 import { detectIdor, harvestEndpoints, type Fetcher } from './detectors/idor';
 import { hitsToFindings, type GitleaksHit } from './detectors/gitleaks';
 import type { CollectResult } from './collector';
@@ -66,6 +68,47 @@ check('connection string password is masked', !secrets.some((f) => /S3cr3tPass/.
 check('finds Supabase service_role key', has(secrets, (f) => /service_role/.test(f.summary) && f.severity === 'critical'));
 check('all secret findings are masked (no raw sk_live_)', !secrets.some((f) => /sk_live_[A-Za-z0-9]{8,}/.test(f.summary + (f.evidence ?? ''))));
 check('OpenAI rule does not swallow the Anthropic key', !secrets.some((f) => /OpenAI/.test(f.summary) && /ant/.test(f.evidence ?? '')));
+
+// --- Extended provider coverage (modern AI / vibe stack) --------------------
+// Format-valid (but fake) keys, assembled from fragments so the scanner doesn't
+// flag this very fixture when pointed at its own repo.
+const hex = '0123456789abcdef';
+const alnum = 'a1B2c3D4e5';
+const newKeysJs = [
+  `const groq = "gsk_${alnum.repeat(6).slice(0, 52)}";`,
+  `const openrouter = "sk-or-v1-${hex.repeat(4)}";`,
+  `const xai = "xai-${alnum.repeat(8)}";`,
+  `const replicate = "r8_${alnum.repeat(4).slice(0, 37)}";`,
+  `const resend = "re_${alnum}1_${alnum.repeat(3).slice(0, 24)}";`,
+  `const render = "rnd_${alnum.repeat(2)}";`,
+  `const mailchimp = "${hex.repeat(2)}-us21";`,
+  `const airtable = "pat${alnum.slice(0, 4) + alnum}.${hex.repeat(4)}";`,
+  `const figma = "figd_${alnum.repeat(4)}";`,
+  `const newrelic = "NRAK-${'A1B2C3D4E5'.repeat(3).slice(0, 27)}";`,
+  `const postman = "PMAK-${hex.repeat(2).slice(0, 24)}-${hex.repeat(3).slice(0, 34)}";`,
+].join('\n');
+const newKeys = await detectSecrets({ ...collected, jsCombined: newKeysJs });
+check('finds Groq API key (critical)', has(newKeys, (f) => /Groq/.test(f.summary) && f.severity === 'critical'));
+check('finds OpenRouter API key (critical)', has(newKeys, (f) => /OpenRouter/.test(f.summary) && f.severity === 'critical'));
+check('OpenRouter key is NOT mislabeled as OpenAI', !newKeys.some((f) => /OpenAI/.test(f.summary) && /or-v1|^sk-or/.test(f.evidence ?? '')));
+check('finds xAI (Grok) API key', has(newKeys, (f) => /xAI/.test(f.summary)));
+check('finds Replicate API token', has(newKeys, (f) => /Replicate/.test(f.summary)));
+check('finds Resend API key', has(newKeys, (f) => /Resend/.test(f.summary)));
+check('finds Render API key (critical)', has(newKeys, (f) => /Render/.test(f.summary) && f.severity === 'critical'));
+check('finds Mailchimp API key', has(newKeys, (f) => /Mailchimp/.test(f.summary)));
+check('finds Airtable personal access token', has(newKeys, (f) => /Airtable/.test(f.summary)));
+check('finds Figma access token', has(newKeys, (f) => /Figma/.test(f.summary)));
+check('finds New Relic user key', has(newKeys, (f) => /New Relic/.test(f.summary)));
+check('finds Postman API key', has(newKeys, (f) => /Postman/.test(f.summary)));
+check('all new-provider findings are masked (no raw gsk_/xai-/re_)', !newKeys.some((f) => /gsk_[A-Za-z0-9]{20,}|xai-[A-Za-z0-9]{40,}/.test(f.summary + (f.evidence ?? ''))));
+
+// A new-provider key verifies live through its read-only probe.
+const newKeysLive = await detectSecrets({ ...collected, jsCombined: newKeysJs }, {
+  verify: true,
+  probe: async () => probeResponse(200, { ok: true }),
+});
+check('verifies a live Groq key (active) via its read-only endpoint', has(newKeysLive, (f) => /Groq/.test(f.summary) && f.verification?.status === 'active' && /api\.groq\.com/.test(f.verification?.checkedEndpoint ?? '')));
+check('verifies a live Resend key (active)', has(newKeysLive, (f) => /Resend/.test(f.summary) && f.verification?.status === 'active'));
 
 // --- Generic high-entropy fallback: precision over recall -------------------
 // A random, high-entropy token with NO secret-ish keyword nearby (build hash,
@@ -439,6 +482,119 @@ const awsNearAnalytics = hitsToFindings(
   false
 );
 check('keeps a real AWS key even next to an analytics snippet', awsNearAnalytics.some((f) => f.severity === 'critical'));
+
+// --- Email auth detector (offline, mock DNS resolver) -----------------------
+// SPF/DMARC live entirely in DNS TXT records, so an injectable resolver lets us
+// exercise every branch without a live domain.
+
+const emailBase: CollectResult = {
+  ...collected,
+  finalUrl: 'https://www.demo.test/path',
+  origin: 'https://www.demo.test',
+};
+
+/** Build a TXT resolver from a map of hostname -> TXT records (each record one string). */
+function txtResolver(records: Record<string, string[]>): TxtResolver {
+  return async (hostname) => (records[hostname] ?? []).map((r) => [r]);
+}
+
+// No SPF and no DMARC at all -> both medium.
+const wideOpen = await detectEmail(emailBase, { resolveTxt: txtResolver({}) });
+check('flags a domain with no SPF (medium)', has(wideOpen, (f) => f.type === 'spf_missing' && f.severity === 'medium'));
+check('flags a domain with no DMARC (medium)', has(wideOpen, (f) => f.type === 'dmarc_weak' && f.severity === 'medium'));
+check('email detector strips www to the bare domain', has(wideOpen, (f) => /(^|\W)demo\.test\b/.test(f.summary) && !/www\./.test(f.summary)));
+
+// Proper SPF (-all) + enforced DMARC (p=reject) -> no findings.
+const locked = await detectEmail(emailBase, {
+  resolveTxt: txtResolver({
+    'demo.test': ['v=spf1 include:_spf.google.com -all'],
+    '_dmarc.demo.test': ['v=DMARC1; p=reject; rua=mailto:dmarc@demo.test'],
+  }),
+});
+check('does NOT flag a properly locked-down domain (SPF -all + DMARC reject)', locked.length === 0);
+
+// Permissive SPF (+all) is as bad as none.
+const plusAll = await detectEmail(emailBase, {
+  resolveTxt: txtResolver({
+    'demo.test': ['v=spf1 +all'],
+    '_dmarc.demo.test': ['v=DMARC1; p=reject'],
+  }),
+});
+check('flags a permissive SPF +all record (medium)', has(plusAll, (f) => f.type === 'spf_missing' && f.severity === 'medium'));
+check('does not double-flag DMARC when DMARC is enforced', !has(plusAll, (f) => f.type === 'dmarc_weak'));
+
+// DMARC present but monitor-only (p=none) -> low.
+const pNone = await detectEmail(emailBase, {
+  resolveTxt: txtResolver({
+    'demo.test': ['v=spf1 -all'],
+    '_dmarc.demo.test': ['v=DMARC1; p=none; rua=mailto:dmarc@demo.test'],
+  }),
+});
+check('flags a monitor-only DMARC p=none as low', has(pNone, (f) => f.type === 'dmarc_weak' && f.severity === 'low'));
+check('does not flag SPF when SPF ends in -all', !has(pNone, (f) => f.type === 'spf_missing'));
+
+// Code-paste / non-web targets have no DNS domain -> detector stays silent.
+const emailCode = await detectEmail(
+  { ...collected, finalUrl: 'pasted-code', origin: '' },
+  { resolveTxt: txtResolver({}) }
+);
+check('email detector skips non-web targets (pasted code)', emailCode.length === 0);
+
+// --- TLS hygiene detector (offline, mock handshake + redirect probes) --------
+
+const tlsBase: CollectResult = {
+  ...collected,
+  finalUrl: 'https://demo.test/',
+  origin: 'https://demo.test',
+};
+const daysFromNow = (n: number): Date => new Date(Date.now() + n * 24 * 60 * 60 * 1000);
+const okInspect = (over: Partial<TlsInspection> = {}) =>
+  async (): Promise<TlsInspection> => ({ validTo: daysFromNow(90), legacyTlsAccepted: false, ...over });
+const okRedirect = async (): Promise<HttpRedirectResult> => ({ redirectsToHttps: true });
+
+// A healthy host: cert far from expiry, no legacy TLS, http redirects -> no findings.
+const tlsHealthy = await detectTls(tlsBase, { inspectTls: okInspect(), checkHttpRedirect: okRedirect });
+check('does NOT flag a healthy TLS setup', tlsHealthy.length === 0);
+
+// Cert expiring within two weeks -> medium.
+const tlsSoon = await detectTls(tlsBase, {
+  inspectTls: okInspect({ validTo: daysFromNow(5) }),
+  checkHttpRedirect: okRedirect,
+});
+check('flags a certificate expiring in <14 days (medium)', has(tlsSoon, (f) => f.type === 'tls_expiring' && f.severity === 'medium'));
+
+// Cert already expired -> high.
+const tlsExpired = await detectTls(tlsBase, {
+  inspectTls: okInspect({ validTo: daysFromNow(-3) }),
+  checkHttpRedirect: okRedirect,
+});
+check('flags an expired certificate as high', has(tlsExpired, (f) => f.type === 'tls_expiring' && f.severity === 'high'));
+
+// Legacy TLS 1.0/1.1 accepted -> medium.
+const tlsLegacy = await detectTls(tlsBase, {
+  inspectTls: okInspect({ legacyTlsAccepted: true }),
+  checkHttpRedirect: okRedirect,
+});
+check('flags a host that accepts legacy TLS 1.0/1.1 (medium)', has(tlsLegacy, (f) => f.type === 'tls_weak_version' && f.severity === 'medium'));
+
+// http:// not redirected to https -> medium.
+const tlsNoRedirect = await detectTls(tlsBase, {
+  inspectTls: okInspect(),
+  checkHttpRedirect: async () => ({ redirectsToHttps: false }),
+});
+check('flags a site that does not redirect http to https (medium)', has(tlsNoRedirect, (f) => f.type === 'no_https_redirect' && f.severity === 'medium'));
+
+// An unreachable plain-HTTP probe (https-only host) must NOT be flagged.
+const tlsHttpsOnly = await detectTls(tlsBase, { inspectTls: okInspect(), checkHttpRedirect: async () => null });
+check('does NOT flag no-redirect when http is unreachable (null probe)', !has(tlsHttpsOnly, (f) => f.type === 'no_https_redirect'));
+
+// A non-https origin skips the cert/version handshake but still checks the redirect.
+const tlsPlain: CollectResult = { ...tlsBase, finalUrl: 'http://demo.test/', origin: 'http://demo.test' };
+const tlsPlainFindings = await detectTls(tlsPlain, {
+  inspectTls: async () => { throw new Error('handshake must not run on http origin'); },
+  checkHttpRedirect: async () => ({ redirectsToHttps: false }),
+});
+check('skips the TLS handshake on a plain-http origin but still flags no redirect', has(tlsPlainFindings, (f) => f.type === 'no_https_redirect') && !has(tlsPlainFindings, (f) => f.type === 'tls_expiring' || f.type === 'tls_weak_version'));
 
 if (failures > 0) {
   console.error(`\n${failures} detector test(s) failed.`);

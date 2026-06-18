@@ -3,7 +3,7 @@
 
 export type Severity = 'critical' | 'high' | 'medium' | 'low' | 'info';
 
-export type Category = 'secrets' | 'database' | 'auth' | 'owasp' | 'code' | 'dependencies';
+export type Category = 'secrets' | 'database' | 'auth' | 'owasp' | 'infra' | 'code' | 'dependencies';
 
 /**
  * Vibe-coding platforms we tailor fix prompts for. `generic` is the
@@ -73,6 +73,13 @@ export type FindingType =
   | 'exposed_config_file'
   | 'exposed_sourcemap'
   | 'clickjacking'
+  // Email + TLS hygiene (the `infra` category). Derived from DNS TXT records and
+  // a TLS handshake to the target host — not from its page JS.
+  | 'spf_missing'
+  | 'dmarc_weak'
+  | 'tls_expiring'
+  | 'tls_weak_version'
+  | 'no_https_redirect'
   // Repository (source-code) scan finding types. A secret found in the git
   // history gets its own type (`secret_committed`) so its explanation can talk
   // about commits and history purging rather than "public JavaScript".

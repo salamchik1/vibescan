@@ -15,6 +15,7 @@ export const ALL_CATEGORIES: Category[] = [
   'database',
   'auth',
   'owasp',
+  'infra',
   'code',
   'dependencies',
 ];

@@ -755,6 +755,134 @@ Content-Security-Policy: frame-ancestors 'none'`,
     ],
   },
 
+  spf_missing: {
+    title: 'Anyone can send email pretending to be your domain',
+    category: 'infra',
+    defaultSeverity: 'medium',
+    whatItMeans:
+      'Your domain ({{domain}}) {{reason}}. SPF (Sender Policy Framework) is the DNS record that tells the world which servers are allowed to send mail as you. Without it — or with an "allow everyone" rule — a scammer can send phishing emails that look exactly like they came from you, and your customers have no way to tell the difference.',
+    fixInstruction:
+      'My domain {{domain}} has no proper SPF record ({{reason}}). Add a DNS TXT record at the root of the domain that lists only the services allowed to send mail for me and ends in "-all" (hard fail). For example, if I send through Google Workspace it should be "v=spf1 include:_spf.google.com -all". Tell me how to add this TXT record at my DNS provider.',
+    fixSteps:
+      '1) List every service that sends email as you (Google Workspace, Microsoft 365, SendGrid, Mailgun, your app server, etc.). 2) Add ONE DNS TXT record on {{domain}} of the form "v=spf1 include:_spf.google.com include:sendgrid.net -all" — include each sender, and end with "-all" (not "+all", which allows anyone). 3) Wait for DNS to propagate, then re-check. Keep it to a single SPF record — multiple SPF records are invalid.',
+    codeExamples: [
+      {
+        stack: 'DNS TXT record',
+        language: 'text',
+        note: 'Add at the domain root (host "@"). End in -all so unlisted senders are rejected.',
+        code: `Type:  TXT
+Host:  @            (the root of {{domain}})
+Value: v=spf1 include:_spf.google.com include:sendgrid.net -all
+
+# -all  = reject mail from any server not listed above (recommended)
+# ~all  = "soft fail" (accepted but marked) — use only while testing
+# +all  = allow ANYONE to send as you — never use this`,
+      },
+    ],
+  },
+
+  dmarc_weak: {
+    title: 'Nothing tells inboxes what to do with fake email from your domain',
+    category: 'infra',
+    defaultSeverity: 'medium',
+    whatItMeans:
+      'Your domain ({{domain}}) {{reason}}. DMARC is the policy that tells Gmail, Outlook and the rest what to do when an email fails your SPF/DKIM checks — i.e. when someone forges your address. Without an enforced policy, forged mail is delivered to your customers’ inboxes anyway, and you get no reports that it is happening.',
+    fixInstruction:
+      'My domain {{domain}} has a weak or missing DMARC policy ({{reason}}). Add (or strengthen) a DNS TXT record at _dmarc.{{domain}}. Start with "v=DMARC1; p=none; rua=mailto:dmarc@{{domain}}" to collect reports without affecting delivery, then once SPF/DKIM are confirmed aligned, move the policy to "p=quarantine" and finally "p=reject". Tell me how to add this TXT record.',
+    fixSteps:
+      '1) Make sure SPF (and ideally DKIM) are already set up and passing. 2) Add a DNS TXT record at the host "_dmarc" on {{domain}} starting with "v=DMARC1; p=none; rua=mailto:dmarc@{{domain}}" — p=none just monitors and emails you reports. 3) Read the aggregate reports for a week or two to confirm your real senders pass. 4) Tighten the policy to p=quarantine, then p=reject, so forged mail is actually blocked.',
+    codeExamples: [
+      {
+        stack: 'DNS TXT record',
+        language: 'text',
+        note: 'Add at the "_dmarc" host. Begin monitoring with p=none, then raise to quarantine/reject.',
+        code: `Type:  TXT
+Host:  _dmarc        (i.e. _dmarc.{{domain}})
+Value: v=DMARC1; p=reject; rua=mailto:dmarc@{{domain}}; fo=1
+
+# p=none       = monitor only (does NOT stop forgery — start here, don't stay here)
+# p=quarantine = forged mail goes to spam
+# p=reject     = forged mail is bounced (strongest)`,
+      },
+    ],
+  },
+
+  tls_expiring: {
+    title: 'Your HTTPS certificate {{state}}',
+    category: 'infra',
+    defaultSeverity: 'medium',
+    whatItMeans:
+      'The TLS/SSL certificate for {{domain}} {{detail}}. When a certificate expires, every visitor gets a full-page "Your connection is not private" browser warning and most simply leave. Certificates need renewing on a schedule — this one is close enough that it is worth acting now.',
+    fixInstruction:
+      'The HTTPS certificate for {{domain}} {{detail}}. Renew it now and, more importantly, set up automatic renewal so this cannot happen again. If I use a host/CDN like Vercel, Netlify or Cloudflare, certificates auto-renew — check that the domain is still correctly connected. If I run my own server, use certbot/Let’s Encrypt with a renewal timer.',
+    fixSteps:
+      '1) Renew the certificate for {{domain}} now. 2) Set up AUTO-renewal so it never lapses: on a managed host (Vercel/Netlify/Cloudflare) confirm the custom domain is connected and DNS is correct; on your own server use Let’s Encrypt certbot with its systemd timer/cron. 3) Add an uptime/expiry monitor that alerts you ~30 days before expiry.',
+    codeExamples: [
+      {
+        stack: "Let's Encrypt (certbot)",
+        language: 'bash',
+        note: 'Issues and auto-renews a free certificate. The timer renews well before expiry.',
+        code: `# Issue/renew a certificate
+sudo certbot --nginx -d {{domain}} -d www.{{domain}}
+
+# certbot installs a renewal timer automatically; verify it:
+systemctl list-timers | grep certbot
+sudo certbot renew --dry-run`,
+      },
+    ],
+  },
+
+  tls_weak_version: {
+    title: 'Your site still accepts outdated, insecure encryption',
+    category: 'infra',
+    defaultSeverity: 'medium',
+    whatItMeans:
+      'Your server for {{domain}} still allows old TLS versions ({{versions}}). These were deprecated by all major browsers in 2020 because they have known weaknesses that can let an attacker on the same network read or tamper with traffic. Modern visitors use TLS 1.2/1.3 already — turning off the old versions removes the risk without affecting them.',
+    fixInstruction:
+      'My server for {{domain}} accepts deprecated TLS versions ({{versions}}). Reconfigure it to require TLS 1.2 as the minimum (TLS 1.3 preferred) and disable TLS 1.0 and 1.1 entirely. If I am behind Cloudflare or a similar CDN, set the minimum TLS version there; if I run my own Nginx/Apache, update the protocols directive.',
+    fixSteps:
+      '1) Set the minimum TLS version to 1.2 (allow 1.3). 2) On a CDN like Cloudflare: SSL/TLS → Edge Certificates → Minimum TLS Version → TLS 1.2. 3) On Nginx: `ssl_protocols TLSv1.2 TLSv1.3;` then reload. On Apache: `SSLProtocol -all +TLSv1.2 +TLSv1.3`. 4) Re-test with an SSL checker to confirm 1.0/1.1 are refused.',
+    codeExamples: [
+      {
+        stack: 'Nginx',
+        language: 'text',
+        note: 'Only TLS 1.2 and 1.3 are offered; older protocols are refused.',
+        code: `# /etc/nginx/nginx.conf  (inside the server/http block)
+ssl_protocols TLSv1.2 TLSv1.3;
+ssl_prefer_server_ciphers off;
+
+# then: sudo nginx -t && sudo systemctl reload nginx`,
+      },
+    ],
+  },
+
+  no_https_redirect: {
+    title: 'Visitors who type your address over HTTP are not forced to HTTPS',
+    category: 'infra',
+    defaultSeverity: 'medium',
+    whatItMeans:
+      'When someone opens http://{{domain}} (no "s"), your server does not redirect them to the secure https:// version. That first plain-HTTP request travels unencrypted, so anyone on the same network (café Wi‑Fi, etc.) can read it or inject content before the user ever reaches the safe version of your site.',
+    fixInstruction:
+      'My site at {{domain}} does not redirect plain HTTP to HTTPS. Add a permanent (301) redirect from http:// to https:// for every path, and add a Strict-Transport-Security (HSTS) header on the HTTPS responses so browsers refuse to use HTTP at all in future.',
+    fixSteps:
+      '1) Force every http:// request to 301-redirect to the same https:// URL — most hosts (Vercel, Netlify, Cloudflare) do this with a single toggle ("Always use HTTPS" / "Force HTTPS"). 2) On your own server, add the redirect in Nginx/Apache. 3) Add a Strict-Transport-Security header (e.g. max-age=63072000; includeSubDomains; preload) so browsers go straight to HTTPS next time.',
+    codeExamples: [
+      {
+        stack: 'Nginx',
+        language: 'text',
+        note: 'A dedicated port-80 server that 301-redirects everything to HTTPS.',
+        code: `server {
+  listen 80;
+  server_name {{domain}} www.{{domain}};
+  return 301 https://$host$request_uri;
+}
+
+# On the HTTPS (443) server block, also send HSTS:
+add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;`,
+      },
+    ],
+  },
+
   sast_finding: {
     title: 'Risky code pattern found in your source',
     category: 'code',
