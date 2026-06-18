@@ -276,6 +276,27 @@ const advisoryOnly: CollectResult = {
 const owaspAdvisory = await detectOwasp(advisoryOnly);
 check('no finding when only Referrer-Policy (advisory) is missing', !has(owaspAdvisory, (f) => f.type === 'missing_security_headers'));
 
+// Bot-challenge / WAF interstitial: the edge answered with a challenge page
+// (Vercel Attack Challenge Mode) before the request reached the app, so the
+// response has none of the site's headers. We must NOT report them as missing.
+const vercelChallenge: CollectResult = {
+  ...collected,
+  origin: 'https://example.vercel.app',
+  status: 403,
+  responseHeaders: {
+    'content-type': 'text/html; charset=utf-8',
+    server: 'Vercel',
+    'x-vercel-mitigated': 'challenge',
+    'x-vercel-challenge-token': 'abc',
+  },
+  html: '<html><body>challenge</body></html>',
+  jsCombined: '',
+};
+const owaspChallenge = await detectOwasp(vercelChallenge);
+check('no header finding behind a Vercel bot challenge', !has(owaspChallenge, (f) => f.type === 'missing_security_headers'));
+check('no clickjacking finding behind a Vercel bot challenge', !has(owaspChallenge, (f) => f.type === 'clickjacking'));
+check('notes why header checks were skipped behind a challenge', vercelChallenge.notes.some((n) => /bot-challenge|WAF/i.test(n)));
+
 // Weak CSP: present but neutered by unsafe-inline.
 const weakCsp: CollectResult = {
   ...collected,

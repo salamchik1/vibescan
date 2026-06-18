@@ -29,6 +29,33 @@ const HEADER_CHECKS: HeaderCheck[] = [
 const CORS_PROBE_ORIGIN = 'https://vibescan-cors-probe.example';
 const AUTH_COOKIE_RE = /(sess|sid|auth|token|jwt|login|sb-|connect|csrf|xsrf)/i;
 
+/**
+ * Did the edge serve a bot-challenge / WAF interstitial instead of the site?
+ *
+ * Vercel's Attack Challenge Mode, Cloudflare's "Checking your browser", and
+ * similar protections answer automated clients with their own interstitial page
+ * *before the request reaches the origin app*. That page is a real HTTP response
+ * (it carries Date, Content-Type, …) but it never includes the site's own
+ * security headers or CSP — so running the header checks against it reports every
+ * header as "missing" even on a perfectly-hardened site. We detect the challenge
+ * and skip the header-based checks rather than emit false positives.
+ */
+function looksLikeBotChallenge(status: number, h: Record<string, string>, html: string): boolean {
+  // Explicit mitigation signals — unambiguous, regardless of status.
+  if ('x-vercel-mitigated' in h) return true; // Vercel Attack Challenge Mode
+  if ('cf-mitigated' in h) return true; // Cloudflare managed challenge
+  if ('x-vercel-challenge-token' in h) return true;
+
+  // Challenge statuses paired with a known protective edge + body markers.
+  const challengeStatus = status === 401 || status === 403 || status === 429 || status === 503;
+  if (!challengeStatus) return false;
+  const server = (h['server'] ?? '').toLowerCase();
+  const onCloudflare = server.includes('cloudflare') || 'cf-ray' in h;
+  if (onCloudflare && /challenge|checking your browser|cf-browser-verification|__cf_chl/i.test(html))
+    return true;
+  return false;
+}
+
 export async function detectOwasp(collected: CollectResult): Promise<Finding[]> {
   const findings: Finding[] = [];
   const h = collected.responseHeaders;
@@ -42,7 +69,19 @@ export async function detectOwasp(collected: CollectResult): Promise<Finding[]> 
   // site that merely flapped during the scan.
   const gotResponse = collected.status !== 0 && Object.keys(h).length > 0;
 
-  if (gotResponse) {
+  // A bot-challenge / WAF interstitial is a real response but not the site's own
+  // page, so its (missing) headers say nothing about the app. Skip header checks
+  // and record why, instead of falsely reporting every header as missing.
+  const botChallenge = gotResponse && looksLikeBotChallenge(collected.status, h, collected.html);
+  if (botChallenge) {
+    collected.notes.push(
+      'Header checks skipped: the site is behind a bot-challenge/WAF (e.g. Vercel Attack ' +
+        'Challenge Mode or Cloudflare), so the scanned response was the challenge page, not ' +
+        'your app. Security headers could not be verified.'
+    );
+  }
+
+  if (gotResponse && !botChallenge) {
     // 1) Missing security headers (HSTS only meaningful on https).
     const missingChecks = HEADER_CHECKS.filter((c) => {
       if (c.label === 'Strict-Transport-Security' && !isHttps) return false;
