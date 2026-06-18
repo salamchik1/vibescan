@@ -40,13 +40,39 @@ In Supabase: **Authentication → URL Configuration**:
 
 That's it. Restart `npm run dev` so the new env is picked up.
 
+## 5. Enable Google and GitHub sign-in (optional but recommended)
+
+No extra env vars — OAuth providers are configured in the Supabase dashboard, and
+both providers reuse the **same** `/auth/confirm` redirect the magic link uses.
+
+In Supabase: **Authentication → Providers**:
+
+**Google**
+
+1. In [Google Cloud Console](https://console.cloud.google.com/apis/credentials):
+   **Create credentials → OAuth client ID → Web application**.
+2. Add **Authorized redirect URI**: `https://<YOURPROJECT>.supabase.co/auth/v1/callback`
+   (copy the exact callback URL shown on Supabase's Google provider page).
+3. Paste the **Client ID** and **Client secret** into Supabase's Google provider and enable it.
+
+**GitHub**
+
+1. In GitHub: **Settings → Developer settings → OAuth Apps → New OAuth App**.
+2. **Authorization callback URL**: `https://<YOURPROJECT>.supabase.co/auth/v1/callback`.
+3. Paste the **Client ID** and **Client secret** into Supabase's GitHub provider and enable it.
+
+The app's own redirect (`/auth/confirm`) is already in your **Redirect URLs** from step 4,
+so nothing else changes. The login page hides the Google/GitHub buttons until Supabase
+keys are present.
+
 ## What you get
 
 | Route            | What it does                                                        |
 | ---------------- | ------------------------------------------------------------------- |
 | `/r/{id}`        | Permanent, shareable report — survives closing the tab.             |
-| `/login`         | Enter email → one-click sign-in link (no password).                 |
+| `/login`         | Continue with Google/GitHub, or get a one-click email link.         |
 | `/dashboard`     | Your scan history (only your own rows, enforced by RLS).            |
+| `/account`       | Profile name, connected sign-in methods, delete account.            |
 | **Copy link** button on every report | Grabs the `/r/{id}` URL to share.              |
 
 Scans run while **signed in** are attached to your account and show in the

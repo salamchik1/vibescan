@@ -20,7 +20,7 @@ import { FindingCard } from './FindingCard';
 const CATEGORIES_BY_MODE: Record<NonNullable<ScanResult['mode']>, Category[]> = {
   url: ['secrets', 'database', 'auth', 'owasp'],
   code: ['secrets', 'database', 'owasp'],
-  repo: ['secrets', 'code', 'dependencies'],
+  repo: ['secrets', 'code', 'dependencies', 'iac'],
 };
 
 export function Report({

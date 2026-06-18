@@ -4,6 +4,7 @@ import { config } from '../config';
 import { cloneRepo } from './clone';
 import { detectSemgrepRepo } from './detectors/semgrep';
 import { detectVulnerableDeps } from './detectors/osv';
+import { detectIacMisconfig } from './detectors/iac';
 import { runGitleaksRepo } from '../detectors/gitleaks';
 
 /**
@@ -36,6 +37,7 @@ export async function runRepoScan(
         const cheap = await Promise.all([
           safe('Dependencies (OSV)', () => detectVulnerableDeps(ctx), notes),
           safe('Secrets (git history)', () => runGitleaksRepo(ctx), notes),
+          safe('IaC / container misconfig', () => detectIacMisconfig(ctx), notes),
         ]);
         findings.push(...cheap.flat());
 

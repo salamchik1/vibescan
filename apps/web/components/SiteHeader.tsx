@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { createClient } from '../lib/supabase/client';
+import { authConfigured } from '../lib/supabase/config';
 
 /**
  * Twenty-style brand mark: a black rounded square (with a hint of depth) holding
@@ -32,13 +34,60 @@ function BrandMark() {
 
 type ActiveKey = 'scan' | 'tools' | 'account';
 
+/** Initials avatar built from the user's name/email — no external <img>, so the CSP stays tight. */
+function Avatar({ label }: { label: string }) {
+  const initial = label.trim().charAt(0).toUpperCase() || '?';
+  return (
+    <span
+      aria-hidden
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink text-xs font-semibold text-paper"
+    >
+      {initial}
+    </span>
+  );
+}
+
+/**
+ * Reads the current session in the browser via the public Supabase client and
+ * stays in sync through onAuthStateChange. Returns `undefined` while loading
+ * (so we render the neutral logged-out CTAs and never flash the wrong state).
+ */
+function useSessionEmail(): string | null | undefined {
+  const [email, setEmail] = useState<string | null | undefined>(
+    authConfigured ? undefined : null
+  );
+
+  useEffect(() => {
+    if (!authConfigured) return;
+    const supabase = createClient();
+    let active = true;
+
+    supabase.auth.getUser().then(({ data }) => {
+      if (active) setEmail(data.user?.email ?? null);
+    });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setEmail(session?.user?.email ?? null);
+    });
+
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+
+  return email;
+}
+
 /** Shared top bar used across the scanner and tools pages, styled after Twenty. */
 export function SiteHeader({ active }: { active?: ActiveKey }) {
   const [open, setOpen] = useState(false);
+  const email = useSessionEmail();
+  const signedIn = Boolean(email);
+
   const links: { href: string; label: string; key: ActiveKey }[] = [
     { href: '/', label: 'Scanner', key: 'scan' },
     { href: '/tools', label: 'Tools', key: 'tools' },
-    { href: '/dashboard', label: 'Account', key: 'account' },
   ];
 
   return (
@@ -70,16 +119,47 @@ export function SiteHeader({ active }: { active?: ActiveKey }) {
               </Link>
             </span>
           ))}
+          {signedIn && (
+            <span className="flex items-center">
+              <span aria-hidden className="mx-1 h-4 w-px bg-ink/10" />
+              <Link
+                href="/dashboard"
+                className={`rounded-md px-3 py-1.5 transition ${
+                  active === 'account' ? 'text-ink' : 'text-ink/60 hover:text-ink'
+                }`}
+              >
+                Scans
+              </Link>
+            </span>
+          )}
         </nav>
 
         {/* Desktop CTAs */}
         <div className="hidden items-center gap-2 sm:flex">
-          <Link href="/login" className="btn-secondary !py-2 text-sm">
-            Log in
-          </Link>
-          <Link href="/login" className="btn-primary !py-2 text-sm">
-            Get started
-          </Link>
+          {signedIn ? (
+            <>
+              <Link
+                href="/account"
+                title={email ?? 'Account'}
+                className="flex items-center gap-2 rounded-full border border-ink/15 py-1 pl-1 pr-3 text-sm text-ink/70 transition hover:border-ink/40 hover:text-ink"
+              >
+                <Avatar label={email ?? '?'} />
+                <span className="max-w-[12rem] truncate">{email}</span>
+              </Link>
+              <form action="/auth/signout" method="post">
+                <button className="btn-secondary !py-2 text-sm">Sign out</button>
+              </form>
+            </>
+          ) : (
+            <>
+              <Link href="/login" className="btn-secondary !py-2 text-sm">
+                Log in
+              </Link>
+              <Link href="/login" className="btn-primary !py-2 text-sm">
+                Get started
+              </Link>
+            </>
+          )}
         </div>
 
         {/* Mobile menu toggle */}
@@ -126,22 +206,52 @@ export function SiteHeader({ active }: { active?: ActiveKey }) {
                 {l.label}
               </Link>
             ))}
+            {signedIn && (
+              <>
+                <Link
+                  href="/dashboard"
+                  onClick={() => setOpen(false)}
+                  className="rounded-lg px-3 py-2.5 text-ink/70 transition hover:bg-ink/[0.04]"
+                >
+                  Scans
+                </Link>
+                <Link
+                  href="/account"
+                  onClick={() => setOpen(false)}
+                  className={`rounded-lg px-3 py-2.5 transition ${
+                    active === 'account'
+                      ? 'bg-ink/[0.05] font-medium text-ink'
+                      : 'text-ink/70 hover:bg-ink/[0.04]'
+                  }`}
+                >
+                  Account
+                </Link>
+              </>
+            )}
           </div>
           <div className="mt-3 flex flex-col gap-2">
-            <Link
-              href="/login"
-              onClick={() => setOpen(false)}
-              className="btn-secondary w-full !py-2.5 text-sm"
-            >
-              Log in
-            </Link>
-            <Link
-              href="/login"
-              onClick={() => setOpen(false)}
-              className="btn-primary w-full !py-2.5 text-sm"
-            >
-              Get started
-            </Link>
+            {signedIn ? (
+              <form action="/auth/signout" method="post">
+                <button className="btn-secondary w-full !py-2.5 text-sm">Sign out</button>
+              </form>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  onClick={() => setOpen(false)}
+                  className="btn-secondary w-full !py-2.5 text-sm"
+                >
+                  Log in
+                </Link>
+                <Link
+                  href="/login"
+                  onClick={() => setOpen(false)}
+                  className="btn-primary w-full !py-2.5 text-sm"
+                >
+                  Get started
+                </Link>
+              </>
+            )}
           </div>
         </nav>
       )}

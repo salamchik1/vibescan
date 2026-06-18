@@ -992,6 +992,155 @@ add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; prelo
       },
     ],
   },
+
+  dockerfile_secret: {
+    title: 'A secret is hard-coded in your container config',
+    category: 'iac',
+    defaultSeverity: 'high',
+    whatItMeans:
+      'Your {{file}} sets {{key}} to a hard-coded value (line {{line}}). Anything baked into a Dockerfile (ENV/ARG) or a compose file is stored in plain text inside the built image and committed to your repo — anyone who can pull the image or read the repo gets the secret. Build-time ARGs are not hidden either; they stay readable in the image history.',
+    fixInstruction:
+      'My {{file}} hard-codes a secret in {{key}} (line {{line}}). Remove the literal value: pass secrets in at runtime via the environment (docker run --env-file / compose `env_file:` / your platform\'s secret store) or Docker BuildKit secret mounts, never as a baked-in ENV or ARG default. Then rotate the exposed value since it must be treated as compromised, and purge it from git history.',
+    fixSteps:
+      '1) Rotate (regenerate) the value in {{key}} — assume it is compromised. 2) Delete the hard-coded value from {{file}}; reference it from the runtime environment instead (env_file / --env-file / platform secrets), or use a BuildKit `--mount=type=secret` for build-time needs. 3) Never `ENV SECRET=...` or `ARG SECRET=default` with a real value — those persist in image layers. 4) Purge the old value from git history (git filter-repo / BFG) and force-push.',
+    codeExamples: [
+      {
+        stack: 'Runtime env instead of baked-in',
+        language: 'bash',
+        note: 'Keep the value out of the image entirely; supply it when the container runs.',
+        code: `# ❌ Dockerfile — baked into every image layer, readable by anyone
+# ENV {{key}}=the-real-value
+
+# ✅ Pass it at runtime from a git-ignored env file
+docker run --env-file .env.production myimage
+
+# docker-compose.yml
+services:
+  app:
+    env_file: .env.production   # .env.production is git-ignored, never committed`,
+      },
+      {
+        stack: 'BuildKit secret (build-time)',
+        language: 'bash',
+        note: 'For secrets needed only during build — they are mounted, not stored in a layer.',
+        code: `# syntax=docker/dockerfile:1
+# RUN --mount=type=secret,id=npmtoken \\
+#     NPM_TOKEN=$(cat /run/secrets/npmtoken) npm ci
+
+docker build --secret id=npmtoken,src=./npm_token.txt .`,
+      },
+    ],
+  },
+
+  compose_privileged: {
+    title: 'A container runs in privileged mode',
+    category: 'iac',
+    defaultSeverity: 'medium',
+    whatItMeans:
+      'A service in {{file}} sets "privileged: true" (line {{line}}). A privileged container is given almost the full power of the host machine — it can access every device, load kernel modules and break out of its isolation. If that container is ever compromised, the attacker effectively owns the host. Almost no application actually needs this.',
+    fixInstruction:
+      'My {{file}} runs a service with "privileged: true" (line {{line}}). Remove it. If the container genuinely needs a specific capability, grant only that one with cap_add instead of full privileged mode, and add security_opt: ["no-new-privileges:true"]. Confirm the app still works without privileged access.',
+    fixSteps:
+      '1) Remove "privileged: true" from the service in {{file}}. 2) If something breaks because it needs a specific Linux capability, add just that one (e.g. cap_add: ["NET_ADMIN"]) rather than full privilege. 3) Add security_opt: ["no-new-privileges:true"] and a read-only root filesystem where possible. 4) Re-test.',
+    codeExamples: [
+      {
+        stack: 'docker-compose.yml',
+        language: 'text',
+        note: 'Drop privileged; grant only the capability you actually need.',
+        code: `services:
+  app:
+    # privileged: true        # ❌ remove — full host access
+    cap_drop: ["ALL"]          # start from zero capabilities
+    cap_add: ["NET_BIND_SERVICE"]   # add back only what's required
+    security_opt: ["no-new-privileges:true"]`,
+      },
+    ],
+  },
+
+  dockerfile_root_user: {
+    title: 'Your container runs as root',
+    category: 'iac',
+    defaultSeverity: 'low',
+    whatItMeans:
+      'Your {{file}} does not drop to a non-root user, so the container runs as root by default. If an attacker finds a flaw in your app, running as root makes it far easier for them to tamper with the container and attempt to break out to the host. Adding a non-root user is a cheap, standard hardening step.',
+    fixInstruction:
+      'My {{file}} runs as root. Add a dedicated non-root user and switch to it with a USER instruction before the app starts (in the final build stage). Make sure the files the app needs are owned by that user.',
+    fixSteps:
+      '1) Create a non-root user in the final stage of {{file}}. 2) Give it ownership of the app files it needs to read/write. 3) Add a `USER` instruction (e.g. `USER app`) before CMD/ENTRYPOINT so the process runs unprivileged. 4) Rebuild and confirm the app still starts.',
+    codeExamples: [
+      {
+        stack: 'Dockerfile',
+        language: 'text',
+        note: 'Create an unprivileged user and switch to it before running the app.',
+        code: `# ... build steps as root ...
+
+# Create a non-root user and own the app dir
+RUN addgroup --system app && adduser --system --ingroup app app
+COPY --chown=app:app . /app
+
+USER app          # everything after this runs unprivileged
+CMD ["node", "server.js"]`,
+      },
+    ],
+  },
+
+  dockerfile_latest_tag: {
+    title: 'Your base image uses the "latest" (or no) tag',
+    category: 'iac',
+    defaultSeverity: 'low',
+    whatItMeans:
+      'A FROM line in your {{file}} pulls a base image without pinning a version ({{image}}) — it uses "latest" or no tag at all. That means two builds days apart can quietly use different base images, which makes builds non-reproducible and lets an unreviewed (possibly compromised) image slip in. Pinning a specific version — ideally by digest — keeps builds predictable and auditable.',
+    fixInstruction:
+      'My {{file}} uses an unpinned base image ({{image}}). Pin it to a specific version tag, and ideally to an immutable digest (image@sha256:...), so every build uses exactly the image I reviewed. Update the pin deliberately when I want a newer base.',
+    fixSteps:
+      '1) Replace the unpinned FROM in {{file}} with a specific version (e.g. `FROM node:20.11-alpine`). 2) For full reproducibility, pin by digest: `FROM node:20.11-alpine@sha256:<digest>`. 3) Bump the pin intentionally (e.g. via Dependabot/Renovate) rather than relying on "latest". 4) Rebuild to confirm.',
+    codeExamples: [
+      {
+        stack: 'Dockerfile',
+        language: 'text',
+        note: 'Pin a version, ideally with a digest, instead of a moving tag.',
+        code: `# ❌ Non-reproducible — "latest" (or no tag) drifts over time
+# FROM node:latest
+
+# ✅ Pin a version
+FROM node:20.11-alpine
+
+# ✅✅ Pin a version AND an immutable digest
+FROM node:20.11-alpine@sha256:0000000000000000000000000000000000000000000000000000000000000000`,
+      },
+    ],
+  },
+
+  compose_exposed_port: {
+    title: 'A service port is published on all network interfaces',
+    category: 'iac',
+    defaultSeverity: 'low',
+    whatItMeans:
+      'A service in {{file}} publishes a port bound to 0.0.0.0 ({{mapping}}, line {{line}}). 0.0.0.0 means "listen on every network interface", so on a server with a public IP this can expose an internal service — a database, cache or admin panel — straight to the internet. If the service is only used by other containers, it should not be published to the host at all; if it must be, bind it to 127.0.0.1.',
+    fixInstruction:
+      'My {{file}} publishes a port on 0.0.0.0 ({{mapping}}). If this service only needs to be reached by other containers, remove the host "ports:" mapping and rely on the internal compose network (use "expose:" instead). If the host genuinely needs it, bind it to 127.0.0.1 so it is not reachable from the public internet.',
+    fixSteps:
+      '1) Decide whether the host actually needs this port, or only other containers do. 2) If only containers need it, drop the "ports:" entry and use "expose:" — services reach each other over the internal network by service name. 3) If the host needs it, bind to localhost: "127.0.0.1:5432:5432" instead of "0.0.0.0:5432:5432". 4) Never publish databases/caches/admin UIs to 0.0.0.0 on a public host.',
+    codeExamples: [
+      {
+        stack: 'docker-compose.yml',
+        language: 'text',
+        note: 'Keep internal services off the public interface.',
+        code: `services:
+  db:
+    image: postgres:16
+    # ❌ Reachable from the public internet on a host with a public IP
+    # ports: ["0.0.0.0:5432:5432"]
+
+    # ✅ Other containers reach it by name on the internal network — no host port
+    expose: ["5432"]
+
+  admin:
+    # ✅ If the host really must reach it, bind to localhost only
+    ports: ["127.0.0.1:8080:8080"]`,
+      },
+    ],
+  },
 };
 
 /** Fill {{placeholders}} in a string from a params map. Unknown placeholders are left as-is. */

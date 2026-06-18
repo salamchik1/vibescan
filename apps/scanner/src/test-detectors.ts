@@ -5,6 +5,7 @@ import { detectTls, type TlsInspection, type HttpRedirectResult } from './detect
 import { detectIdor, harvestEndpoints, type Fetcher } from './detectors/idor';
 import { detectJwt } from './detectors/jwt';
 import { hitsToFindings, type GitleaksHit } from './detectors/gitleaks';
+import { scanDockerfile, scanComposeFile } from './repo/detectors/iac';
 import type { CollectResult } from './collector';
 import type { SafeFetchResult } from './util/fetch';
 import type { Probe, ProbeResponse } from './verify/liveness';
@@ -638,6 +639,101 @@ const tlsPlainFindings = await detectTls(tlsPlain, {
   checkHttpRedirect: async () => ({ redirectsToHttps: false }),
 });
 check('skips the TLS handshake on a plain-http origin but still flags no redirect', has(tlsPlainFindings, (f) => f.type === 'no_https_redirect') && !has(tlsPlainFindings, (f) => f.type === 'tls_expiring' || f.type === 'tls_weak_version'));
+
+// --- IaC / container misconfig detector (offline, pure string rules) --------
+// Secret values below are assembled from fragments so the scanner doesn't flag
+// this very fixture when pointed at its own repo.
+const realDbPass = 'Pq7' + 'mZ2xK9' + 'wL5vR8tN';
+
+// A Dockerfile that hits every rule: unpinned base, root user, baked secret.
+const badDockerfile = [
+  'FROM node:latest',
+  'WORKDIR /app',
+  'COPY . .',
+  'RUN npm ci',
+  `ENV DB_PASSWORD=${realDbPass}`,
+  'EXPOSE 3000',
+  'CMD ["node", "server.js"]',
+].join('\n');
+const dockerBad = scanDockerfile(badDockerfile, 'Dockerfile');
+check('flags an unpinned :latest base image (low)', has(dockerBad, (f) => f.type === 'dockerfile_latest_tag' && f.severity === 'low'));
+check('flags a container running as root (low)', has(dockerBad, (f) => f.type === 'dockerfile_root_user' && f.severity === 'low'));
+check('flags a hard-coded secret in ENV (high)', has(dockerBad, (f) => f.type === 'dockerfile_secret' && f.severity === 'high' && f.params?.key === 'DB_PASSWORD'));
+check('Dockerfile secret value is masked (no raw password)', !dockerBad.some((f) => new RegExp(realDbPass).test(f.summary + (f.evidence ?? ''))));
+check('latest-tag finding carries file:line', has(dockerBad, (f) => f.type === 'dockerfile_latest_tag' && f.params?.file === 'Dockerfile' && Number(f.params?.line) > 0));
+
+// A well-formed, hardened Dockerfile: pinned digest, non-root USER, env from a
+// build arg (no literal). Multi-stage with a builder that runs as root, but the
+// final stage drops privileges — must NOT be flagged as root.
+const goodDockerfile = [
+  'FROM node:20.11-alpine@sha256:' + '0'.repeat(64) + ' AS build',
+  'USER root',
+  'RUN npm ci && npm run build',
+  '',
+  'FROM node:20.11-alpine@sha256:' + '0'.repeat(64),
+  'ARG DB_PASSWORD',
+  'ENV DB_PASSWORD=${DB_PASSWORD}',
+  'RUN addgroup -S app && adduser -S app -G app',
+  'USER app',
+  'CMD ["node", "server.js"]',
+].join('\n');
+const dockerGood = scanDockerfile(goodDockerfile, 'Dockerfile');
+check('does NOT flag a digest-pinned base image', !has(dockerGood, (f) => f.type === 'dockerfile_latest_tag'));
+check('does NOT flag root when the final stage drops to a non-root USER', !has(dockerGood, (f) => f.type === 'dockerfile_root_user'));
+check('does NOT flag a secret passed through from a build ARG ($VAR)', !has(dockerGood, (f) => f.type === 'dockerfile_secret'));
+
+// An explicit version tag is pinned enough (no digest required) -> no latest finding.
+const taggedDockerfile = 'FROM python:3.12-slim\nUSER 1001\nCMD ["python", "app.py"]';
+const dockerTagged = scanDockerfile(taggedDockerfile, 'api.Dockerfile');
+check('does NOT flag a specific version tag as unpinned', !has(dockerTagged, (f) => f.type === 'dockerfile_latest_tag'));
+check('treats a numeric UID (USER 1001) as non-root', !has(dockerTagged, (f) => f.type === 'dockerfile_root_user'));
+
+// A placeholder secret value must not be reported.
+const placeholderDockerfile = 'FROM node:20\nUSER app\nENV API_TOKEN=changeme\nARG SECRET_KEY';
+const dockerPlaceholder = scanDockerfile(placeholderDockerfile, 'Dockerfile');
+check('does NOT flag a placeholder secret value (changeme)', !has(dockerPlaceholder, (f) => f.type === 'dockerfile_secret'));
+
+// --- docker-compose rules ---------------------------------------------------
+const realToken = 'sk-' + 'aB3xK9mZ' + '2pQ7wL5v' + 'R8tN4cF6';
+const badCompose = [
+  'services:',
+  '  db:',
+  '    image: postgres:16',
+  '    privileged: true',
+  '    ports:',
+  '      - "0.0.0.0:5432:5432"',
+  '    environment:',
+  `      - POSTGRES_PASSWORD=${realDbPass}`,
+  '  api:',
+  '    image: myapi:latest',
+  '    environment:',
+  `      API_SECRET: ${realToken}`,
+].join('\n');
+const composeBad = scanComposeFile(badCompose, 'docker-compose.yml');
+check('flags a privileged compose service (medium)', has(composeBad, (f) => f.type === 'compose_privileged' && f.severity === 'medium'));
+check('flags a port published on 0.0.0.0 (low)', has(composeBad, (f) => f.type === 'compose_exposed_port' && f.severity === 'low' && /5432/.test(f.params?.mapping ?? '')));
+check('flags a compose env secret in list form (high)', has(composeBad, (f) => f.type === 'dockerfile_secret' && f.params?.key === 'POSTGRES_PASSWORD'));
+check('flags a compose env secret in map form (high)', has(composeBad, (f) => f.type === 'dockerfile_secret' && f.params?.key === 'API_SECRET'));
+check('compose secret values are masked', !composeBad.some((f) => new RegExp(`${realDbPass}|${realToken}`).test(f.summary + (f.evidence ?? ''))));
+check('reports privileged at most once per file', composeBad.filter((f) => f.type === 'compose_privileged').length === 1);
+
+// A clean compose file: localhost-bound port, env from variable, no privileged.
+const goodCompose = [
+  'services:',
+  '  db:',
+  '    image: postgres:16',
+  '    expose: ["5432"]',
+  '    environment:',
+  '      - POSTGRES_PASSWORD=${DB_PASSWORD}',
+  '  cache:',
+  '    image: redis:7',
+  '    ports:',
+  '      - "127.0.0.1:6379:6379"',
+].join('\n');
+const composeGood = scanComposeFile(goodCompose, 'compose.yaml');
+check('does NOT flag a localhost-bound port (127.0.0.1)', !has(composeGood, (f) => f.type === 'compose_exposed_port'));
+check('does NOT flag a compose env secret passed via ${VAR}', !has(composeGood, (f) => f.type === 'dockerfile_secret'));
+check('does NOT flag a compose file with no privileged service', !has(composeGood, (f) => f.type === 'compose_privileged'));
 
 if (failures > 0) {
   console.error(`\n${failures} detector test(s) failed.`);

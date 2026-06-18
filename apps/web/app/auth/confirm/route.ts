@@ -12,6 +12,13 @@ export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const next = searchParams.get('next') ?? '/dashboard';
 
+  // OAuth providers (and Supabase) append ?error=...&error_description=... when
+  // the user cancels or the exchange is rejected. Bail out early with a friendly
+  // message instead of falling through to a generic "link invalid".
+  if (searchParams.get('error')) {
+    return NextResponse.redirect(`${origin}/login?error=oauth_failed`);
+  }
+
   const supabase = await getServerSupabase();
   if (!supabase) {
     return NextResponse.redirect(`${origin}/login?error=not_configured`);

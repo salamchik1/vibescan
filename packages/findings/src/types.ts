@@ -3,7 +3,15 @@
 
 export type Severity = 'critical' | 'high' | 'medium' | 'low' | 'info';
 
-export type Category = 'secrets' | 'database' | 'auth' | 'owasp' | 'infra' | 'code' | 'dependencies';
+export type Category =
+  | 'secrets'
+  | 'database'
+  | 'auth'
+  | 'owasp'
+  | 'infra'
+  | 'code'
+  | 'dependencies'
+  | 'iac';
 
 /**
  * Vibe-coding platforms we tailor fix prompts for. `generic` is the
@@ -90,7 +98,15 @@ export type FindingType =
   // about commits and history purging rather than "public JavaScript".
   | 'secret_committed'
   | 'sast_finding'
-  | 'vulnerable_dependency';
+  | 'vulnerable_dependency'
+  // Infrastructure-as-code / container misconfig (the `iac` category). Derived by
+  // reading committed Dockerfiles and docker-compose files in the cloned repo —
+  // lightweight, dependency-free rules (no Trivy/Docker required).
+  | 'dockerfile_root_user'
+  | 'dockerfile_latest_tag'
+  | 'dockerfile_secret'
+  | 'compose_exposed_port'
+  | 'compose_privileged';
 
 /**
  * Result of a live, read-only check against the provider that issued a secret.
