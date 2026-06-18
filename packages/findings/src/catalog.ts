@@ -252,6 +252,41 @@ where schemaname = 'public'
     ],
   },
 
+  supabase_unverified: {
+    title: 'Supabase detected — check that Row Level Security is on',
+    category: 'database',
+    defaultSeverity: 'low',
+    whatItMeans:
+      "Your site talks to Supabase, but we couldn't read the public anon key from the page, so we couldn't automatically check whether your tables are protected. This is NOT a confirmed problem — it's a reminder to verify it yourself. If Row Level Security (RLS) is off on a table that holds private data, a stranger could read it straight from the browser; if RLS is on (the default for new tables you've locked down), you're fine.",
+    fixInstruction:
+      'Confirm Row Level Security is enabled on every Supabase table that holds private data, and that each policy scopes rows to their owner (auth.uid() = user_id). Enable RLS on any table that still has it off.',
+    fixSteps:
+      "In the Supabase SQL editor, list any table that still has RLS disabled:\nselect tablename from pg_tables where schemaname = 'public' and not rowsecurity;\nFor each one, run:\nALTER TABLE <table> ENABLE ROW LEVEL SECURITY;\nthen add policies so each user only sees their own rows.",
+    codeExamples: [
+      {
+        stack: 'Find every unprotected table',
+        language: 'sql',
+        note: 'Run in the Supabase SQL editor. An empty result means every table already has RLS on.',
+        code: `select schemaname, tablename
+from pg_tables
+where schemaname = 'public'
+  and not rowsecurity;`,
+      },
+      {
+        stack: 'Supabase (SQL)',
+        language: 'sql',
+        note: 'For any table the query above lists, turn RLS on and scope rows to their owner.',
+        code: `-- 1) Turn RLS on (denies everything until a policy allows it)
+alter table public.{{table}} enable row level security;
+
+-- 2) Each user reads only their own rows
+create policy "{{table}}_select_own"
+  on public.{{table}} for select
+  using (auth.uid() = user_id);`,
+      },
+    ],
+  },
+
   supabase_storage_public: {
     title: 'A Supabase storage bucket is fully public',
     category: 'database',
@@ -784,6 +819,18 @@ export default {
       'The file {{path}} is publicly served on my site. Make sure it is excluded from the deployment and blocked at the host, and check whether it contains any secrets I need to rotate.',
     fixSteps:
       'Exclude {{path}} from your deploy output and block it at your host/CDN. Review it for any secrets (tokens, passwords) and rotate anything sensitive it exposed.',
+  },
+
+  exposed_api_spec: {
+    title: 'Your API specification is publicly accessible',
+    category: 'owasp',
+    defaultSeverity: 'low',
+    whatItMeans:
+      'The API spec "{{path}}" (Swagger/OpenAPI) is reachable on your live site. It documents every endpoint, parameter, and data model you expose — a ready-made map an attacker can use to probe your API. Sometimes that is intentional, but a public spec widens your attack surface and should be restricted unless you mean for it to be open.',
+    fixInstruction:
+      'The API specification at {{path}} is publicly served on my site. Restrict it to authenticated users or internal networks, or remove it from production if it does not need to be public.',
+    fixSteps:
+      'Gate {{path}} (and any /docs or /swagger-ui UI) behind authentication, or disable it in production. If it must stay public, make sure it only documents endpoints you intend to expose.',
   },
 
   exposed_sourcemap: {

@@ -64,6 +64,9 @@ export type FindingType =
   | 'secret_exposed'
   | 'database_url_exposed'
   | 'supabase_rls_open'
+  // Supabase was detected but we couldn't get the anon key, so RLS could not be
+  // probed. Honest "heads up, verify this yourself" — NOT an asserted breach.
+  | 'supabase_unverified'
   | 'supabase_storage_public'
   | 'firebase_rules_open'
   | 'auth_unprotected_route'
@@ -84,6 +87,7 @@ export type FindingType =
   | 'exposed_git'
   | 'exposed_backup'
   | 'exposed_config_file'
+  | 'exposed_api_spec'
   | 'exposed_sourcemap'
   | 'clickjacking'
   // Email + TLS hygiene (the `infra` category). Derived from DNS TXT records and

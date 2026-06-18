@@ -126,10 +126,10 @@ export async function detectSupabase(collected: CollectResult): Promise<Finding[
   const anonKey = findAnonKey(text);
   if (!anonKey) {
     findings.push({
-      type: 'supabase_rls_open',
+      type: 'supabase_unverified',
       severity: 'low',
       category: 'database',
-      summary: 'Supabase detected, but the anon key was not found — RLS could not be verified automatically.',
+      summary: "Supabase detected, but the anon key wasn't found — we couldn't verify Row Level Security automatically.",
       params: { table: 'your tables' },
     });
     return findings;
