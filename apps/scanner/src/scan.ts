@@ -12,6 +12,7 @@ import { detectIdor } from './detectors/idor';
 import { detectJwt } from './detectors/jwt';
 import { detectEmail } from './detectors/email';
 import { detectTls } from './detectors/tls';
+import { detectDns } from './detectors/dns';
 import { runGitleaks } from './detectors/gitleaks';
 import { config, SCANNER_VERSION } from './config';
 
@@ -108,6 +109,7 @@ export async function runScan(rawUrl: string): Promise<ScanResult> {
         safe('GraphQL', () => detectGraphql(collected), notes),
         safe('Email auth', () => detectEmail(collected), notes),
         safe('TLS hygiene', () => detectTls(collected), notes),
+        safe('DNS hygiene / takeover', () => detectDns(collected), notes),
       ]);
       const findings: Finding[] = groups.flat();
 

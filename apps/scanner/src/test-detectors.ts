@@ -2,6 +2,7 @@ import { detectSecrets } from './detectors/secrets';
 import { detectOwasp } from './detectors/owasp';
 import { detectEmail, type TxtResolver } from './detectors/email';
 import { detectTls, type TlsInspection, type HttpRedirectResult } from './detectors/tls';
+import { detectDns, type CaaRecord, type DetectDnsOptions } from './detectors/dns';
 import { detectIdor, harvestEndpoints, type Fetcher } from './detectors/idor';
 import { detectJwt } from './detectors/jwt';
 import { hitsToFindings, type GitleaksHit } from './detectors/gitleaks';
@@ -681,6 +682,122 @@ const tlsPlainFindings = await detectTls(tlsPlain, {
   checkHttpRedirect: async () => ({ redirectsToHttps: false }),
 });
 check('skips the TLS handshake on a plain-http origin but still flags no redirect', has(tlsPlainFindings, (f) => f.type === 'no_https_redirect') && !has(tlsPlainFindings, (f) => f.type === 'tls_expiring' || f.type === 'tls_weak_version'));
+
+// --- DNS hygiene + subdomain takeover (offline, mock resolvers + body) -------
+// CAA, CNAME, host-resolution and the confirming HTTP body are all injectable, so
+// every branch runs without touching real DNS or the network.
+
+const dnsBase: CollectResult = {
+  ...collected,
+  finalUrl: 'https://app.demo.test/',
+  origin: 'https://app.demo.test',
+  html: '',
+};
+const caa = (records: Record<string, CaaRecord[]>) => async (host: string) => records[host] ?? [];
+const cnames = (records: Record<string, string[]>) => async (host: string) => records[host] ?? [];
+const resolvesMap = (records: Record<string, boolean | null>) => async (host: string): Promise<boolean | null> => {
+  const v = records[host];
+  return v === undefined ? true : v;
+};
+/** A baseline options set with everything healthy; individual tests override one piece. */
+function dnsOpts(over: Partial<DetectDnsOptions> = {}): DetectDnsOptions {
+  return {
+    candidateHosts: ['app.demo.test'], // pin enumeration so tests are deterministic
+    resolveCaa: caa({ 'demo.test': [{ issue: 'letsencrypt.org' }] }),
+    resolveCname: cnames({}),
+    hostResolves: resolvesMap({}),
+    fetchBody: async () => null,
+    ...over,
+  };
+}
+
+// A healthy domain: CAA present on the apex, no CNAME on the host -> nothing.
+const dnsHealthy = await detectDns(dnsBase, dnsOpts());
+check('does NOT flag a healthy domain (CAA present, no dangling CNAME)', dnsHealthy.length === 0);
+
+// No CAA anywhere on the tree -> a low hygiene nudge on the apex.
+const dnsNoCaa = await detectDns(dnsBase, dnsOpts({ resolveCaa: caa({}) }));
+check('flags a missing CAA record as low', has(dnsNoCaa, (f) => f.type === 'caa_missing' && f.severity === 'low'));
+check('CAA finding names the registrable apex (not the www/app host)', has(dnsNoCaa, (f) => f.type === 'caa_missing' && f.params?.domain === 'demo.test'));
+
+// CAA on an ancestor (the apex) covers the subdomain -> no CAA finding.
+const dnsCaaInherited = await detectDns(dnsBase, dnsOpts({ resolveCaa: caa({ 'demo.test': [{ issue: 'pki.goog' }] }) }));
+check('treats a CAA record on an ancestor as covering the subdomain', !has(dnsCaaInherited, (f) => f.type === 'caa_missing'));
+
+// Confirmed takeover via NXDOMAIN: CNAME to an Azure slot whose target is gone.
+const dnsAzure = await detectDns(dnsBase, dnsOpts({
+  resolveCname: cnames({ 'app.demo.test': ['gone.azurewebsites.net'] }),
+  hostResolves: resolvesMap({ 'gone.azurewebsites.net': false }),
+}));
+check('flags a confirmed Azure takeover (NXDOMAIN target) as high', has(dnsAzure, (f) => f.type === 'subdomain_takeover' && f.severity === 'high'));
+check('takeover finding names the service + dangling target', has(dnsAzure, (f) => f.type === 'subdomain_takeover' && f.params?.service === 'Microsoft Azure' && /azurewebsites\.net/.test(f.params?.target ?? '')));
+
+// An Azure CNAME whose target still resolves is a live app -> NOT flagged.
+const dnsAzureLive = await detectDns(dnsBase, dnsOpts({
+  resolveCname: cnames({ 'app.demo.test': ['live.azurewebsites.net'] }),
+  hostResolves: resolvesMap({ 'live.azurewebsites.net': true }),
+}));
+check('does NOT flag an Azure CNAME whose target still resolves', !has(dnsAzureLive, (f) => f.type === 'subdomain_takeover'));
+
+// Confirmed takeover via body fingerprint: GitHub Pages target resolves, but the
+// page is GitHub's "unclaimed" notice. We reuse the collector's html for the host.
+const dnsGithub = await detectDns(
+  { ...dnsBase, html: "<html><body>There isn't a GitHub Pages site here.</body></html>" },
+  dnsOpts({
+    resolveCname: cnames({ 'app.demo.test': ['someuser.github.io'] }),
+    hostResolves: resolvesMap({ 'someuser.github.io': true }), // GitHub IPs always resolve
+  })
+);
+check('flags a confirmed GitHub Pages takeover via body fingerprint (high)', has(dnsGithub, (f) => f.type === 'subdomain_takeover' && f.params?.service === 'GitHub Pages'));
+
+// A GitHub Pages CNAME serving a REAL site (no fingerprint) is not a takeover.
+const dnsGithubLive = await detectDns(
+  { ...dnsBase, html: '<html><body>Welcome to my real site</body></html>' },
+  dnsOpts({ resolveCname: cnames({ 'app.demo.test': ['someuser.github.io'] }) })
+);
+check('does NOT flag a live GitHub Pages site (no unclaimed fingerprint)', !has(dnsGithubLive, (f) => f.type === 'subdomain_takeover'));
+
+// An enumerated (non-scanned) subdomain is fingerprinted via fetchBody, not html.
+const dnsEnumerated = await detectDns(dnsBase, dnsOpts({
+  candidateHosts: ['blog.demo.test'],
+  resolveCname: cnames({ 'blog.demo.test': ['myshop.myshopify.com'] }),
+  fetchBody: async (host) => (host === 'blog.demo.test' ? 'Sorry, this shop is currently unavailable' : null),
+}));
+check('fingerprints an enumerated subdomain via a live fetch (Shopify takeover)', has(dnsEnumerated, (f) => f.type === 'subdomain_takeover' && f.params?.service === 'Shopify'));
+
+// Unknown CNAME target that no longer resolves -> low dangling-record note (not high).
+const dnsDangling = await detectDns(dnsBase, dnsOpts({
+  resolveCname: cnames({ 'app.demo.test': ['old-thing.example.net'] }),
+  hostResolves: resolvesMap({ 'old-thing.example.net': false }),
+}));
+check('flags an unknown dangling CNAME (NXDOMAIN target) as low', has(dnsDangling, (f) => f.type === 'dangling_dns' && f.severity === 'low'));
+check('a plain dangling record is never escalated to a takeover', !has(dnsDangling, (f) => f.type === 'subdomain_takeover'));
+
+// A CNAME to a perfectly live third party (a CDN) is normal -> nothing.
+const dnsCdn = await detectDns(dnsBase, dnsOpts({
+  resolveCname: cnames({ 'app.demo.test': ['d111.cloudfront-cdn.example'] }),
+  hostResolves: resolvesMap({ 'd111.cloudfront-cdn.example': true }),
+}));
+check('does NOT flag a CNAME to a live third party (normal CDN setup)', !has(dnsCdn, (f) => f.type === 'subdomain_takeover' || f.type === 'dangling_dns'));
+
+// An inconclusive resolver result (null = SERVFAIL/timeout) must NOT be flagged.
+const dnsInconclusive = await detectDns(dnsBase, dnsOpts({
+  resolveCname: cnames({ 'app.demo.test': ['maybe.example.net'] }),
+  hostResolves: resolvesMap({ 'maybe.example.net': null }),
+}));
+check('does NOT flag a dangling record on an inconclusive (null) resolution', !has(dnsInconclusive, (f) => f.type === 'dangling_dns'));
+
+// Platform subdomains (*.vercel.app): user can't set CAA, and the slot is the
+// provider's, so the whole detector stays silent.
+const dnsPlatform = await detectDns(
+  { ...dnsBase, finalUrl: 'https://my-app.vercel.app/', origin: 'https://my-app.vercel.app' },
+  dnsOpts({ candidateHosts: ['my-app.vercel.app'], resolveCaa: caa({}) })
+);
+check('skips CAA on platform subdomains (*.vercel.app)', !has(dnsPlatform, (f) => f.type === 'caa_missing'));
+
+// Non-web targets (pasted code) have no host -> the detector is a no-op.
+const dnsCode = await detectDns({ ...collected, finalUrl: 'pasted-code', origin: '' }, dnsOpts());
+check('DNS detector skips non-web targets (pasted code)', dnsCode.length === 0);
 
 // --- IaC / container misconfig detector (offline, pure string rules) --------
 // Secret values below are assembled from fragments so the scanner doesn't flag

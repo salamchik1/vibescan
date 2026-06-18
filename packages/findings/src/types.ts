@@ -97,6 +97,11 @@ export type FindingType =
   | 'tls_expiring'
   | 'tls_weak_version'
   | 'no_https_redirect'
+  // DNS hygiene + subdomain takeover (the `infra` category). Derived from public
+  // DNS records (CAA, CNAME) and a confirming live-body fingerprint — read-only.
+  | 'caa_missing'
+  | 'subdomain_takeover'
+  | 'dangling_dns'
   // Repository (source-code) scan finding types. A secret found in the git
   // history gets its own type (`secret_committed`) so its explanation can talk
   // about commits and history purging rather than "public JavaScript".

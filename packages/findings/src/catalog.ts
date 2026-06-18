@@ -1004,6 +1004,77 @@ add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; prelo
     ],
   },
 
+  subdomain_takeover: {
+    title: 'A subdomain can be hijacked by an attacker (subdomain takeover)',
+    category: 'infra',
+    defaultSeverity: 'high',
+    whatItMeans:
+      'Your subdomain {{host}} points (via a DNS CNAME record) to a {{service}} address ({{target}}) that is no longer claimed — the app, bucket or site it once pointed at has been deleted. Because the slot is free, anyone can register it on {{service}} and instantly serve THEIR content from your subdomain. Visitors (and search engines) see a real {{host}} page, so attackers use this for convincing phishing, stealing cookies/logins that trust your domain, and hijacking OAuth redirects. We only read public DNS and the page — nothing was registered or changed.',
+    fixInstruction:
+      'My subdomain {{host}} has a dangling CNAME to {{target}} ({{service}}) whose target is unclaimed, so it is vulnerable to subdomain takeover. Either (a) delete the {{host}} CNAME/DNS record entirely if the subdomain is no longer used, or (b) re-create the resource on {{service}} and point it back so I control the slot before anyone else can. Do the safe-to-delete option first if in doubt. Then audit every other subdomain for dangling records.',
+    fixSteps:
+      '1) In my DNS provider, find the record for {{host}} (it is a CNAME to {{target}}). 2) If {{host}} is no longer used, DELETE that DNS record now — that closes the takeover immediately. 3) If it IS still needed, re-create the {{service}} resource (the app/bucket/site) and re-claim the {{target}} slot so it belongs to me again, then confirm the page loads. 4) Audit all other subdomains for CNAMEs pointing at third-party services whose resource no longer exists (a CNAME to a deleted Heroku/Netlify/S3/GitHub Pages/Azure slot is the classic case).',
+    codeExamples: [
+      {
+        stack: 'Find dangling records (dig)',
+        language: 'bash',
+        note: 'List the CNAME, then check whether its target still resolves / is claimed.',
+        code: `# What does the subdomain point at?
+dig +short CNAME {{host}}
+#   -> {{target}}
+
+# Does the target still exist? An NXDOMAIN / "no such app/bucket" body = takeable.
+dig +short {{target}}
+curl -sS https://{{host}}/ | head -n 20`,
+      },
+    ],
+  },
+
+  dangling_dns: {
+    title: 'A DNS record points to something that no longer exists',
+    category: 'infra',
+    defaultSeverity: 'low',
+    whatItMeans:
+      'Your subdomain {{host}} has a CNAME record pointing to {{target}}, but {{target}} no longer exists (it returns NXDOMAIN). That makes {{host}} a broken link, and a stale record like this is how subdomain takeovers start — if {{target}} ever becomes registerable, whoever claims it controls your subdomain. This is not a confirmed takeover, just a dangling record worth cleaning up.',
+    fixInstruction:
+      'My subdomain {{host}} has a dangling CNAME pointing to {{target}}, which no longer resolves. Remove the {{host}} DNS record if the subdomain is no longer used, or re-point it at a resource I currently control. Then review my other DNS records for the same kind of stale entry.',
+    fixSteps:
+      '1) In my DNS provider, locate the CNAME for {{host}} → {{target}}. 2) If {{host}} is unused, delete the record. 3) If it is still needed, re-point it at a live resource I own. 4) Periodically audit DNS for records whose targets no longer resolve — they are broken and a takeover risk.',
+  },
+
+  caa_missing: {
+    title: 'Any certificate authority can issue HTTPS certificates for your domain',
+    category: 'infra',
+    defaultSeverity: 'low',
+    whatItMeans:
+      'Your domain ({{domain}}) has no CAA record. A CAA record is a short DNS entry that names which certificate authorities (Let’s Encrypt, Google, DigiCert, …) are ALLOWED to issue HTTPS certificates for you. Without one, any CA in the world may issue a certificate for your domain, which slightly widens the door to mis-issuance (a CA tricked or compromised into handing someone else a valid certificate for your site). This is a low-risk hardening gap, not an active problem — adding a CAA record is a quick, safe extra lock.',
+    fixInstruction:
+      'My domain {{domain}} has no CAA record. Add a DNS CAA record at the root of the domain that lists only the certificate authority I actually use, so no other CA may issue certificates for me. For example, if I use Let’s Encrypt (which most managed hosts do) add: 0 issue "letsencrypt.org". Tell me how to add this record at my DNS provider, and include an iodef contact so I get notified of issuance attempts.',
+    fixSteps:
+      '1) Work out which CA issues your certificates — on a managed host (Vercel/Netlify/Cloudflare) it is usually Let’s Encrypt or Google Trust Services; check the certificate in your browser if unsure. 2) Add a DNS CAA record on {{domain}} allowing only that CA, e.g. `0 issue "letsencrypt.org"`. 3) Add an iodef record so you are emailed about issuance attempts: `0 iodef "mailto:security@{{domain}}"`. 4) Add the CA(s) for any other certs you use (e.g. a CDN) — if you forget one, new certificates from it will fail to issue, which is the record working as intended.',
+    codeExamples: [
+      {
+        stack: 'DNS CAA record',
+        language: 'text',
+        note: 'Add at the domain root (host "@"). List every CA you use — and only those.',
+        code: `Type:  CAA
+Host:  @            (the root of {{domain}})
+
+# Allow only Let's Encrypt to issue certificates:
+0 issue "letsencrypt.org"
+
+# (optional) Also allow Google Trust Services, used by some hosts:
+0 issue "pki.goog"
+
+# Get notified of any issuance attempt:
+0 iodef "mailto:security@{{domain}}"
+
+# Flag 0 = non-critical. Most DNS providers have a dedicated "CAA" record form
+# with separate Flag / Tag / Value fields instead of this raw syntax.`,
+      },
+    ],
+  },
+
   sast_finding: {
     title: 'Risky code pattern found in your source',
     category: 'code',
