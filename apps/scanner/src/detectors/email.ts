@@ -2,6 +2,7 @@ import { resolveTxt as dnsResolveTxt } from 'node:dns/promises';
 import type { Finding } from '@vibescan/findings';
 import type { CollectResult } from '../collector';
 import { isPlatformSubdomain } from '../util/host';
+import { withDnsTimeout, DnsTimeoutError } from '../util/dns';
 
 /**
  * Email-authentication detector (the `infra` category).
@@ -26,11 +27,16 @@ export interface DetectEmailOptions {
   resolveTxt?: TxtResolver;
 }
 
-/** Real resolver: collapse DNS's chunked TXT strings and swallow NXDOMAIN/ENODATA as "no records". */
+/**
+ * Real resolver: collapse DNS's chunked TXT strings and swallow NXDOMAIN/ENODATA
+ * as "no records". A timeout is rethrown so the caller can skip the check
+ * (inconclusive) rather than report a false "missing SPF/DMARC".
+ */
 const defaultResolveTxt: TxtResolver = async (hostname) => {
   try {
-    return await dnsResolveTxt(hostname);
-  } catch {
+    return await withDnsTimeout(dnsResolveTxt(hostname));
+  } catch (err) {
+    if (err instanceof DnsTimeoutError) throw err; // inconclusive — caller skips
     // ENOTFOUND / ENODATA / SERVFAIL — treat as "this name has no TXT records".
     return [];
   }
@@ -78,7 +84,14 @@ export async function detectEmail(
   const findings: Finding[] = [];
 
   // --- SPF: a TXT record on the domain starting with v=spf1 -------------------
-  const txt = await resolve(domain);
+  // A failed/timed-out lookup is inconclusive: skip the check rather than report a
+  // false "missing" off a resolver that simply didn't answer.
+  let txt: string[][];
+  try {
+    txt = await resolve(domain);
+  } catch {
+    return findings;
+  }
   const spf = txt.map(joinTxt).find((r) => /^v=spf1\b/i.test(r.trim()));
   if (!spf) {
     findings.push({
@@ -106,7 +119,12 @@ export async function detectEmail(
   }
 
   // --- DMARC: a TXT record on _dmarc.<domain> starting with v=DMARC1 ----------
-  const dmarcTxt = await resolve(`_dmarc.${domain}`);
+  let dmarcTxt: string[][];
+  try {
+    dmarcTxt = await resolve(`_dmarc.${domain}`);
+  } catch {
+    return findings; // inconclusive lookup — skip rather than false-report
+  }
   const dmarc = dmarcTxt.map(joinTxt).find((r) => /^v=DMARC1\b/i.test(r.trim()));
   if (!dmarc) {
     findings.push({

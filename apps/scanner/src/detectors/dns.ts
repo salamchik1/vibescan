@@ -7,6 +7,7 @@ import {
 import type { Finding } from '@vibescan/findings';
 import type { CollectResult } from '../collector';
 import { safeFetch } from '../util/fetch';
+import { withDnsTimeout, DnsTimeoutError } from '../util/dns';
 import {
   scannedHost,
   apexGuess,
@@ -328,26 +329,6 @@ async function isUnclaimed(
 }
 
 // --- Default (production) resolvers -----------------------------------------
-
-// node:dns has no built-in deadline, so a slow or filtered resolver can stall a
-// lookup for 20-30s (c-ares retries). Race every query against a hard cap so the
-// detector stays responsive; a timeout is surfaced as a rejection so callers can
-// treat it as inconclusive rather than as "no record" (which would false-alarm).
-const DNS_TIMEOUT_MS = 4_000;
-
-class DnsTimeoutError extends Error {
-  constructor() {
-    super('DNS lookup timed out');
-    this.name = 'DnsTimeoutError';
-  }
-}
-
-function withDnsTimeout<T>(p: Promise<T>): Promise<T> {
-  return Promise.race([
-    p,
-    new Promise<T>((_, reject) => setTimeout(() => reject(new DnsTimeoutError()), DNS_TIMEOUT_MS)),
-  ]);
-}
 
 /** Real CAA resolver: swallow NXDOMAIN/ENODATA as "no CAA records"; rethrow timeouts as inconclusive. */
 const defaultResolveCaa = async (host: string): Promise<CaaRecord[]> => {
