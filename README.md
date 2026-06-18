@@ -58,14 +58,16 @@ GitHub/GitLab/Bitbucket `https` URLs are accepted (host allowlist, no credential
 
 ## Checks performed
 
-1. **Leaked secrets** — 30+ high-signal key formats: Stripe (incl. webhook secrets), OpenAI,
-   **Anthropic**, Google API/OAuth, AWS, GitHub/GitLab, npm/PyPI, SendGrid/Mailgun, Slack/Discord/Telegram,
-   Shopify/Square/Notion/Linear/Doppler/Sentry/Mapbox/DigitalOcean/HuggingFace, FCM server keys, private keys,
+1. **Leaked secrets** — 45+ high-signal key formats: Stripe (incl. webhook secrets), OpenAI,
+   **Anthropic**, OpenRouter, Groq, xAI, Replicate, Perplexity, Fireworks, Google API/OAuth, AWS,
+   GitHub/GitLab, npm/PyPI, SendGrid/Mailgun/Resend/Mailchimp, Slack/Discord/Telegram,
+   Shopify/Square/Notion/Linear/Doppler/Sentry/Mapbox/DigitalOcean/HuggingFace, Render/Databricks/Pinecone/Airtable/Figma/Atlassian/Postman/New Relic, FCM server keys, private keys,
    Supabase `service_role` JWTs, **database connection strings** (`postgres://user:pass@…`, Mongo/MySQL/Redis),
    plus high-entropy tokens with hash/UUID noise filtered out. Optional
    [gitleaks](https://github.com/gitleaks/gitleaks) for 150+ more patterns (Docker/CI only).
-   - **Liveness verification** — for OpenAI, Anthropic, Stripe, GitHub, GitLab, SendGrid, Hugging Face,
-     DigitalOcean, Telegram and Slack we make **one read-only call** to the provider (`/v1/models`,
+   - **Liveness verification** — for OpenAI, Anthropic, OpenRouter, Groq, xAI, Replicate, Stripe, GitHub,
+     GitLab, SendGrid, Resend, Hugging Face, DigitalOcean, Airtable, Figma, Postman, Telegram, Google and
+     Slack we make **one read-only call** to the provider (`/v1/models`,
      `/v1/balance`, `/user`, `getMe`, …) to confirm the key actually still works. A **confirmed-live** key
      is flagged as exploitable *right now* (and shows scope/account detail); a **revoked** key is auto-downgraded
      to `low` so dead keys stop generating false alarms. Strictly read-only, never follows redirects with the

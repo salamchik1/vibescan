@@ -166,6 +166,62 @@ const VERIFIERS: Record<string, Verifier> = {
     return byStatus(r, ep, 'Stripe accepted this test key (test mode — no real money, but still rotate it).');
   },
 
+  'Groq API key': async (secret, probe) => {
+    const ep = 'GET api.groq.com/openai/v1/models';
+    const r = await probe('https://api.groq.com/openai/v1/models', { headers: { authorization: `Bearer ${secret}` } });
+    if (!r) return unverified(ep);
+    return byStatus(r, ep, 'Groq accepted this key — it can spend your API credits right now.');
+  },
+
+  'OpenRouter API key': async (secret, probe) => {
+    const ep = 'GET openrouter.ai/api/v1/key';
+    const r = await probe('https://openrouter.ai/api/v1/key', { headers: { authorization: `Bearer ${secret}` } });
+    if (!r) return unverified(ep);
+    return byStatus(r, ep, 'OpenRouter accepted this key — it can spend your credits right now.');
+  },
+
+  'Replicate API token': async (secret, probe) => {
+    const ep = 'GET api.replicate.com/v1/account';
+    const r = await probe('https://api.replicate.com/v1/account', { headers: { authorization: `Bearer ${secret}` } });
+    if (!r) return unverified(ep);
+    return byStatus(r, ep, 'Replicate accepted this token — it can run models and spend your credits.');
+  },
+
+  'xAI (Grok) API key': async (secret, probe) => {
+    const ep = 'GET api.x.ai/v1/api-key';
+    const r = await probe('https://api.x.ai/v1/api-key', { headers: { authorization: `Bearer ${secret}` } });
+    if (!r) return unverified(ep);
+    return byStatus(r, ep, 'xAI accepted this key — it can spend your API credits right now.');
+  },
+
+  'Resend API key': async (secret, probe) => {
+    const ep = 'GET api.resend.com/domains';
+    const r = await probe('https://api.resend.com/domains', { headers: { authorization: `Bearer ${secret}` } });
+    if (!r) return unverified(ep);
+    return byStatus(r, ep, 'Resend accepted this key — anyone can send email as you with it.');
+  },
+
+  'Airtable personal access token': async (secret, probe) => {
+    const ep = 'GET api.airtable.com/v0/meta/whoami';
+    const r = await probe('https://api.airtable.com/v0/meta/whoami', { headers: { authorization: `Bearer ${secret}` } });
+    if (!r) return unverified(ep);
+    return byStatus(r, ep, 'Airtable accepted this token — it can read and write your bases.');
+  },
+
+  'Figma access token': async (secret, probe) => {
+    const ep = 'GET api.figma.com/v1/me';
+    const r = await probe('https://api.figma.com/v1/me', { headers: { 'x-figma-token': secret } });
+    if (!r) return unverified(ep);
+    return byStatus(r, ep, 'Figma accepted this token — it can read your design files.');
+  },
+
+  'Postman API key': async (secret, probe) => {
+    const ep = 'GET api.getpostman.com/me';
+    const r = await probe('https://api.getpostman.com/me', { headers: { 'x-api-key': secret } });
+    if (!r) return unverified(ep);
+    return byStatus(r, ep, 'Postman accepted this key — it can read your workspaces and collections.');
+  },
+
   'GitHub token': async (secret, probe) => githubUser(secret, probe),
   'GitHub fine-grained token': async (secret, probe) => githubUser(secret, probe),
 

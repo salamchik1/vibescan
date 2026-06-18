@@ -41,9 +41,46 @@ function joinTxt(record: string[]): string {
 }
 
 /**
+ * Platform-issued public suffixes: hosting providers that hand out free
+ * `<app>.<suffix>` subdomains. The user does NOT own the registrable apex here
+ * (DNS for `vercel.app`, `github.io`, … is run by the provider), so they cannot
+ * add SPF/DMARC even if they wanted to — and nobody sends mail from these names.
+ * Flagging them is an un-actionable false alarm, so we skip the email check.
+ *
+ * A real custom domain pointed at one of these platforms (e.g. `app.acme.com`)
+ * does NOT match — it ends in `acme.com`, whose DNS the user controls, so it is
+ * still checked.
+ */
+const PLATFORM_SUFFIXES = [
+  'vercel.app',
+  'netlify.app',
+  'github.io',
+  'pages.dev', // Cloudflare Pages
+  'workers.dev', // Cloudflare Workers
+  'web.app', // Firebase Hosting
+  'firebaseapp.com',
+  'onrender.com', // Render
+  'herokuapp.com',
+  'fly.dev',
+  'railway.app',
+  'surge.sh',
+  'glitch.me',
+  'replit.app',
+  'repl.co',
+  'streamlit.app',
+];
+
+/** True when the host sits under a platform-issued public suffix (DNS not user-controlled). */
+function isPlatformSubdomain(host: string): boolean {
+  return PLATFORM_SUFFIXES.some((suffix) => host === suffix || host.endsWith(`.${suffix}`));
+}
+
+/**
  * The domain we test for email auth: the scanned host with a leading `www.` removed
  * (mail is sent from the bare domain, not its www host). Returns null for non-web
- * targets (code-paste scans, IPs) where a DNS email check is meaningless.
+ * targets (code-paste scans, IPs) and for platform-issued subdomains (vercel.app,
+ * github.io, …) where the user can't control DNS — so a DNS email check is either
+ * meaningless or un-actionable.
  */
 export function emailDomain(collected: CollectResult): string | null {
   let host = '';
@@ -60,6 +97,8 @@ export function emailDomain(collected: CollectResult): string | null {
   host = host.replace(/^www\./i, '').toLowerCase();
   // Must look like a real registrable name (a dot, no raw IP literal).
   if (!host.includes('.') || /^\d{1,3}(\.\d{1,3}){3}$/.test(host)) return null;
+  // Platform subdomains (*.vercel.app etc.): user can't set DNS, no mail sent — skip.
+  if (isPlatformSubdomain(host)) return null;
   return host;
 }
 

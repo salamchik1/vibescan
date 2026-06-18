@@ -21,9 +21,16 @@ const RULES: SecretRule[] = [
   { provider: 'Stripe test secret key', re: /\b(sk|rk)_test_[0-9a-zA-Z]{16,}\b/g, severity: 'low' },
   { provider: 'Stripe webhook signing secret', re: /\bwhsec_[A-Za-z0-9]{32,}\b/g, severity: 'high' },
 
-  // AI providers (the core audience for vibe-coded apps)
+  // AI / LLM providers (the core audience for vibe-coded apps) — every one spends real API credits.
   { provider: 'Anthropic API key', re: /\bsk-ant-(?:api|admin)[A-Za-z0-9-]{2,}-[A-Za-z0-9_-]{20,}\b/g, severity: 'critical' },
-  { provider: 'OpenAI API key', re: /\bsk-(?!ant-)(?:proj-|svcacct-)?[A-Za-z0-9_-]{20,}\b/g, severity: 'critical' },
+  // OpenRouter keys start `sk-or-v1-`; it MUST precede the broad OpenAI `sk-` rule below so it isn't mislabeled as OpenAI.
+  { provider: 'OpenRouter API key', re: /\bsk-or-v1-[a-f0-9]{64}\b/g, severity: 'critical' },
+  { provider: 'OpenAI API key', re: /\bsk-(?!ant-|or-v1-)(?:proj-|svcacct-)?[A-Za-z0-9_-]{20,}\b/g, severity: 'critical' },
+  { provider: 'Groq API key', re: /\bgsk_[A-Za-z0-9]{52}\b/g, severity: 'critical' },
+  { provider: 'xAI (Grok) API key', re: /\bxai-[A-Za-z0-9]{80}\b/g, severity: 'critical' },
+  { provider: 'Replicate API token', re: /\br8_[A-Za-z0-9]{37}\b/g, severity: 'critical' },
+  { provider: 'Perplexity API key', re: /\bpplx-[A-Za-z0-9]{48}\b/g, severity: 'high' },
+  { provider: 'Fireworks AI API key', re: /\bfw_[A-Za-z0-9]{24,}\b/g, severity: 'high' },
   { provider: 'Hugging Face token', re: /\bhf_[A-Za-z0-9]{30,}\b/g, severity: 'high' },
 
   // Cloud / infra
@@ -57,6 +64,18 @@ const RULES: SecretRule[] = [
   { provider: 'Doppler token', re: /\bdp\.(?:pt|st|ct|sa)\.[A-Za-z0-9]{40,}\b/g, severity: 'high' },
   { provider: 'Sentry auth token', re: /\bsntrys_[A-Za-z0-9_=]{40,}\b/g, severity: 'high' },
   { provider: 'Mapbox secret token', re: /\bsk\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{20,}\b/g, severity: 'high' },
+
+  // Email / infra / data platforms
+  { provider: 'Resend API key', re: /\bre_[A-Za-z0-9]{8,}_[A-Za-z0-9]{20,}\b/g, severity: 'high' },
+  { provider: 'Mailchimp API key', re: /\b[0-9a-f]{32}-us\d{1,2}\b/g, severity: 'high' },
+  { provider: 'Render API key', re: /\brnd_[A-Za-z0-9]{14,}\b/g, severity: 'critical' },
+  { provider: 'New Relic user key', re: /\bNRAK-[A-Z0-9]{27}\b/g, severity: 'high' },
+  { provider: 'Databricks token', re: /\bdapi[a-f0-9]{32}(?:-\d)?\b/g, severity: 'critical' },
+  { provider: 'Pinecone API key', re: /\bpcsk_[A-Za-z0-9_]{40,}\b/g, severity: 'high' },
+  { provider: 'Airtable personal access token', re: /\bpat[A-Za-z0-9]{14}\.[A-Za-z0-9]{64}\b/g, severity: 'high' },
+  { provider: 'Figma access token', re: /\bfigd_[A-Za-z0-9_-]{40,}\b/g, severity: 'medium' },
+  { provider: 'Atlassian API token', re: /\bATATT3[A-Za-z0-9_=.\-]{50,}\b/g, severity: 'high' },
+  { provider: 'Postman API key', re: /\bPMAK-[a-f0-9]{24}-[a-f0-9]{34}\b/g, severity: 'high' },
 
   // Keys / crypto material
   { provider: 'Private key', re: /-----BEGIN (?:RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----/g, severity: 'critical' },

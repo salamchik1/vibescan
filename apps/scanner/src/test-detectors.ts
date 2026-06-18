@@ -584,6 +584,27 @@ const emailCode = await detectEmail(
 );
 check('email detector skips non-web targets (pasted code)', emailCode.length === 0);
 
+// Platform-issued subdomains (*.vercel.app, *.github.io, …): the user can't set
+// DNS on the provider's apex and no mail is sent from them, so flagging missing
+// SPF/DMARC is an un-actionable false alarm — the detector stays silent.
+const emailVercel = await detectEmail(
+  { ...emailBase, finalUrl: 'https://vibescan-web.vercel.app/', origin: 'https://vibescan-web.vercel.app' },
+  { resolveTxt: txtResolver({}) }
+);
+check('email detector skips platform subdomains (*.vercel.app)', emailVercel.length === 0);
+const emailGhPages = await detectEmail(
+  { ...emailBase, finalUrl: 'https://acme.github.io/', origin: 'https://acme.github.io' },
+  { resolveTxt: txtResolver({}) }
+);
+check('email detector skips platform subdomains (*.github.io)', emailGhPages.length === 0);
+// A real custom domain hosted ON such a platform is NOT a platform subdomain
+// (DNS is user-controlled), so it is still checked.
+const emailCustom = await detectEmail(
+  { ...emailBase, finalUrl: 'https://app.acme.com/', origin: 'https://app.acme.com' },
+  { resolveTxt: txtResolver({}) }
+);
+check('email detector still checks a real custom domain on a platform', has(emailCustom, (f) => f.type === 'spf_missing'));
+
 // --- TLS hygiene detector (offline, mock handshake + redirect probes) --------
 
 const tlsBase: CollectResult = {
