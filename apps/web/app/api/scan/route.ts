@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { ScanResult } from '@vibescan/findings';
 import { saveScan } from '../../../lib/scans';
 import { getCurrentUser } from '../../../lib/supabase/server';
-import { resolveScannerUrl } from '../../../lib/scannerEndpoint';
+import { resolveScannerUrl, postScanner } from '../../../lib/scannerEndpoint';
 
 // These run server-side only and are never exposed to the browser.
 // SCANNER_URL, when set, pins a fixed scanner (local dev = http://localhost:8787,
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const res = await fetch(`${scanner.url.replace(/\/+$/, '')}/scan`, {
+    const res = await postScanner(scanner.url, '/scan', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
       },
       body: JSON.stringify(payload),
       // Give the scanner room to finish (Playwright + probes).
-      signal: AbortSignal.timeout(90_000),
+      timeoutMs: 90_000,
     });
     const data = await res.json().catch(() => ({ error: 'Scanner returned an unreadable response.' }));
 

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '../../../../lib/supabase/server';
-import { resolveScannerUrl } from '../../../../lib/scannerEndpoint';
+import { resolveScannerUrl, postScanner } from '../../../../lib/scannerEndpoint';
 
 // Server-side only. Enqueues an async repository scan on the scanner and returns
 // a jobId; the browser then polls GET /api/scan/repo/[id] (which reads Supabase
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
   const user = await getCurrentUser().catch(() => null);
 
   try {
-    const res = await fetch(`${scanner.url.replace(/\/+$/, '')}/scan/repo`, {
+    const res = await postScanner(scanner.url, '/scan/repo', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -48,7 +48,7 @@ export async function POST(req: Request) {
       },
       body: JSON.stringify({ repoUrl, userId: user?.id ?? null }),
       // Enqueue only — should return almost immediately.
-      signal: AbortSignal.timeout(15_000),
+      timeoutMs: 15_000,
     });
     const data = await res.json().catch(() => ({ error: 'Scanner returned an unreadable response.' }));
     return NextResponse.json(data, { status: res.status });
