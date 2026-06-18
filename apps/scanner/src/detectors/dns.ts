@@ -1,13 +1,7 @@
-import {
-  resolveCaa as dnsResolveCaa,
-  resolveCname as dnsResolveCname,
-  resolve4 as dnsResolve4,
-  resolve6 as dnsResolve6,
-} from 'node:dns/promises';
 import type { Finding } from '@vibescan/findings';
 import type { CollectResult } from '../collector';
 import { safeFetch } from '../util/fetch';
-import { withDnsTimeout, DnsTimeoutError } from '../util/dns';
+import { dohResolveCname, dohResolveCaaRaw, dohHostResolves } from '../util/dns';
 import {
   scannedHost,
   apexGuess,
@@ -330,46 +324,32 @@ async function isUnclaimed(
 
 // --- Default (production) resolvers -----------------------------------------
 
-/** Real CAA resolver: swallow NXDOMAIN/ENODATA as "no CAA records"; rethrow timeouts as inconclusive. */
+/** CAA resolver (DoH): map presentation records to CaaRecord[]; a DoH timeout rethrows as inconclusive. */
 const defaultResolveCaa = async (host: string): Promise<CaaRecord[]> => {
-  try {
-    return (await withDnsTimeout(dnsResolveCaa(host))) as CaaRecord[];
-  } catch (err) {
-    if (err instanceof DnsTimeoutError) throw err; // inconclusive — caller skips
-    return []; // NXDOMAIN/ENODATA = genuinely no CAA
-  }
+  // dohResolveCaaRaw throws DnsTimeoutError when inconclusive — let it propagate
+  // so the caller skips rather than reporting a false "no CAA".
+  return (await dohResolveCaaRaw(host)).map(parseCaaRecord);
 };
 
-/** Real CNAME resolver: swallow NXDOMAIN/ENODATA/timeout as "no CNAME". */
-const defaultResolveCname = async (host: string): Promise<string[]> => {
-  try {
-    return await withDnsTimeout(dnsResolveCname(host));
-  } catch {
-    return [];
-  }
-};
+/** CNAME resolver (DoH): [] for "no CNAME" or an inconclusive lookup. */
+const defaultResolveCname = (host: string): Promise<string[]> => dohResolveCname(host);
 
-/** True if the name resolves to an A/AAAA address, false on NXDOMAIN, null if inconclusive. */
-const defaultHostResolves = async (host: string): Promise<boolean | null> => {
-  const v4 = await tryResolve(() => dnsResolve4(host));
-  if (v4 === true) return true;
-  const v6 = await tryResolve(() => dnsResolve6(host));
-  if (v6 === true) return true;
-  // Only call it "does not exist" when both lookups returned a clean NXDOMAIN.
-  if (v4 === false && v6 === false) return false;
-  return null; // a SERVFAIL/timeout on either — don't risk a false positive
-};
+/** True if the name resolves to an A/AAAA address, false on NXDOMAIN, null if inconclusive (DoH). */
+const defaultHostResolves = (host: string): Promise<boolean | null> => dohHostResolves(host);
 
-/** Resolve helper: true=got records, false=NXDOMAIN/ENODATA, null=other (transient/timeout) error. */
-async function tryResolve(fn: () => Promise<string[]>): Promise<boolean | null> {
-  try {
-    const addrs = await withDnsTimeout(fn());
-    return addrs.length > 0;
-  } catch (err) {
-    if (err instanceof DnsTimeoutError) return null; // inconclusive, not NXDOMAIN
-    const code = (err as NodeJS.ErrnoException).code;
-    if (code === 'ENOTFOUND' || code === 'ENODATA') return false;
-    return null;
+/** Parse a CAA presentation record (`0 issue "pki.goog"`) into the tag we care about. */
+function parseCaaRecord(data: string): CaaRecord {
+  const m = /^\s*(\d+)\s+(issue|issuewild|iodef)\s+"?([^"]*)"?/i.exec(data);
+  if (!m) return {};
+  const critical = Number(m[1]);
+  const value = m[3] ?? '';
+  switch ((m[2] ?? '').toLowerCase()) {
+    case 'issue':
+      return { critical, issue: value };
+    case 'issuewild':
+      return { critical, issuewild: value };
+    default:
+      return { critical, iodef: value };
   }
 }
 

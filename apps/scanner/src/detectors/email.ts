@@ -1,8 +1,7 @@
-import { resolveTxt as dnsResolveTxt } from 'node:dns/promises';
 import type { Finding } from '@vibescan/findings';
 import type { CollectResult } from '../collector';
 import { isPlatformSubdomain } from '../util/host';
-import { withDnsTimeout, DnsTimeoutError } from '../util/dns';
+import { dohResolveTxtRaw } from '../util/dns';
 
 /**
  * Email-authentication detector (the `infra` category).
@@ -28,18 +27,12 @@ export interface DetectEmailOptions {
 }
 
 /**
- * Real resolver: collapse DNS's chunked TXT strings and swallow NXDOMAIN/ENODATA
- * as "no records". A timeout is rethrown so the caller can skip the check
- * (inconclusive) rather than report a false "missing SPF/DMARC".
+ * Real resolver (DoH, port 443): one chunk-array per TXT record. NXDOMAIN/ENODATA
+ * come back as [] ("no records"); an inconclusive lookup throws DnsTimeoutError so
+ * the caller skips the check rather than reporting a false "missing SPF/DMARC".
  */
 const defaultResolveTxt: TxtResolver = async (hostname) => {
-  try {
-    return await withDnsTimeout(dnsResolveTxt(hostname));
-  } catch (err) {
-    if (err instanceof DnsTimeoutError) throw err; // inconclusive — caller skips
-    // ENOTFOUND / ENODATA / SERVFAIL — treat as "this name has no TXT records".
-    return [];
-  }
+  return (await dohResolveTxtRaw(hostname)).map((record) => [record]);
 };
 
 /** Join a TXT record's chunks into one string (DNS splits long strings into 255-char pieces). */
