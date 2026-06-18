@@ -6,17 +6,28 @@ import { safeFetch } from '../util/fetch';
 const PROJECT_RE = /https?:\/\/([a-z0-9]{20})\.supabase\.co/gi;
 const FROM_RE = /\.from\(\s*['"`]([a-zA-Z_][a-zA-Z0-9_]*)['"`]\s*\)/g;
 const PUBLIC_BUCKET_RE = /\/storage\/v1\/object\/public\/([a-zA-Z0-9_-]+)\//g;
+// Supabase's current (2025+) browser-safe key format, which replaced the legacy
+// `anon` JWT. It isn't a JWT, so the JWT scan below misses it — match it directly.
+// `sb_secret_…` is the server-only sibling; we deliberately don't treat it as an
+// anon key (a leaked secret key is a different, separate finding).
+const PUBLISHABLE_KEY_RE = /sb_publishable_[A-Za-z0-9_-]{20,}/g;
 
 const DEFAULT_TABLES = ['users', 'profiles', 'orders', 'messages', 'payments', 'customers', 'subscriptions'];
 const MAX_TABLES_TO_PROBE = 20;
 const MAX_BUCKETS_TO_PROBE = 5;
 
+/**
+ * The public, browser-safe key we can probe PostgREST with. Either the legacy
+ * `anon` (or `authenticated`) JWT, or the current `sb_publishable_…` key — both
+ * are sent as `apikey`/`Bearer` by supabase-js exactly the way we send them here.
+ */
 function findAnonKey(text: string): string | null {
   for (const jwt of extractJwts(text)) {
     const role = jwtRole(jwt);
     if (role === 'anon' || role === 'authenticated') return jwt.raw;
   }
-  return null;
+  const publishable = text.match(PUBLISHABLE_KEY_RE);
+  return publishable?.[0] ?? null;
 }
 
 /**
