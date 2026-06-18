@@ -9,6 +9,7 @@ import { detectOwasp, detectSourceMaps } from './detectors/owasp';
 import { detectFiles } from './detectors/files';
 import { detectGraphql } from './detectors/graphql';
 import { detectIdor } from './detectors/idor';
+import { detectJwt } from './detectors/jwt';
 import { detectEmail } from './detectors/email';
 import { detectTls } from './detectors/tls';
 import { runGitleaks } from './detectors/gitleaks';
@@ -101,6 +102,7 @@ export async function runScan(rawUrl: string): Promise<ScanResult> {
         safe('Firebase', () => detectFirebase(collected), notes),
         safe('Auth', () => detectAuth(collected), notes),
         safe('IDOR/BOLA', () => detectIdor(collected), notes),
+        safe('JWT weaknesses', () => detectJwt(collected), notes),
         safe('OWASP', () => detectOwasp(collected), notes),
         safe('Exposed files', () => detectFiles(collected), notes),
         safe('GraphQL', () => detectGraphql(collected), notes),
@@ -153,6 +155,9 @@ export async function runCodeScan(code: string): Promise<ScanResult> {
       findings.push(...(await safe('Gitleaks', () => runGitleaks(collected), notes)));
       findings.push(...(await safe('Supabase', () => detectSupabase(collected), notes)));
       findings.push(...(await safe('Firebase', () => detectFirebase(collected), notes)));
+      // JWT weaknesses are derivable from code alone (alg:none, weak HS256 secret,
+      // expired hard-coded tokens) — all offline, so they run on pasted code too.
+      findings.push(...(await safe('JWT weaknesses', () => detectJwt(collected), notes)));
       // Source maps are the one OWASP signal derivable from code alone; the
       // header/CORS/cookie checks are skipped here (they'd be false positives
       // against empty headers — see the note above).

@@ -61,6 +61,11 @@ export type FindingType =
   | 'auth_unprotected_route'
   | 'auth_client_only'
   | 'bola_idor'
+  // JWT weaknesses (the `auth` category). Derived offline from tokens present in
+  // the scanned code — no network calls, nothing forged or sent live.
+  | 'jwt_alg_none'
+  | 'jwt_weak_secret'
+  | 'jwt_expired'
   | 'graphql_introspection'
   | 'cors_misconfig'
   | 'insecure_cookie'

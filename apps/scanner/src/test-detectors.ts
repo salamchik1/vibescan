@@ -3,10 +3,12 @@ import { detectOwasp } from './detectors/owasp';
 import { detectEmail, type TxtResolver } from './detectors/email';
 import { detectTls, type TlsInspection, type HttpRedirectResult } from './detectors/tls';
 import { detectIdor, harvestEndpoints, type Fetcher } from './detectors/idor';
+import { detectJwt } from './detectors/jwt';
 import { hitsToFindings, type GitleaksHit } from './detectors/gitleaks';
 import type { CollectResult } from './collector';
 import type { SafeFetchResult } from './util/fetch';
 import type { Probe, ProbeResponse } from './verify/liveness';
+import { createHmac } from 'node:crypto';
 import type { Finding } from '@vibescan/findings';
 
 let failures = 0;
@@ -393,6 +395,47 @@ const uuidFetch: Fetcher = async (url) =>
   lastId(url) === uuidId ? json(200, { id: uuidId, owner: 'x', balance: 100 }) : json(404, { error: 'no' });
 const idorUuid = await detectIdor({ ...idorBase, jsCombined: `fetch('/api/accounts/${uuidId}')` }, uuidFetch);
 check('flags no-auth UUID object access as high (likely)', has(idorUuid, (f) => f.type === 'bola_idor' && f.severity === 'high'));
+
+// --- JWT weaknesses detector (offline, no network) --------------------------
+// Every token is built at runtime (b64url fragments + a local HMAC) so no
+// contiguous JWT literal lives in this file — the scanner won't flag its own
+// fixtures when pointed at this repo.
+
+/** Sign a JWT locally with HS256 over the given secret. */
+function signHs256(header: unknown, payload: unknown, secret: string): string {
+  const input = `${b64url(header)}.${b64url(payload)}`;
+  return `${input}.${createHmac('sha256', secret).update(input).digest('base64url')}`;
+}
+const jwtCollected = { ...collected, jsCombined: '' };
+const STRONG_SECRET = 'kQ9-Zr2_Wt7xN4cF6yH1jD0sGqW-aB3xK9mZ2pL5vR8tN'; // not in the dictionary
+
+// alg:none — an unsigned token (header.payload. with an empty signature).
+const noneToken = `${b64url({ alg: 'none', typ: 'JWT' })}.${b64url({ sub: '1', role: 'admin', name: 'attacker' })}.`;
+const jwtNone = detectJwt({ ...jwtCollected, jsCombined: `const t = "${noneToken}";` });
+check('flags an alg:none JWT as high', has(jwtNone, (f) => f.type === 'jwt_alg_none' && f.severity === 'high'));
+check('alg:none finding masks the raw token', !jwtNone.some((f) => (f.summary + (f.evidence ?? '')).includes(noneToken)));
+
+// Weak HS256 secret — signed with the dictionary word "secret".
+const weakToken = signHs256({ alg: 'HS256', typ: 'JWT' }, { sub: '1', role: 'admin' }, 'secret');
+const jwtWeak = detectJwt({ ...jwtCollected, jsCombined: `const t = "${weakToken}";` });
+check('flags a weak HS256 secret as critical', has(jwtWeak, (f) => f.type === 'jwt_weak_secret' && f.severity === 'critical'));
+check('weak-secret finding names the cracked secret', has(jwtWeak, (f) => f.type === 'jwt_weak_secret' && f.params?.secret === 'secret'));
+check('weak-secret finding masks the raw token', !jwtWeak.some((f) => (f.summary + (f.evidence ?? '')).includes(weakToken)));
+
+// A token signed with a strong, random secret must NOT crack.
+const strongToken = signHs256({ alg: 'HS256', typ: 'JWT' }, { sub: '1', role: 'admin' }, STRONG_SECRET);
+const jwtStrong = detectJwt({ ...jwtCollected, jsCombined: `const t = "${strongToken}";` });
+check('does NOT flag a strong HS256 secret as weak', !has(jwtStrong, (f) => f.type === 'jwt_weak_secret'));
+
+// An expired token (strong secret, so weak-secret doesn't pre-empt it).
+const expiredToken = signHs256({ alg: 'HS256', typ: 'JWT' }, { sub: '1', exp: 1_516_239_022 }, STRONG_SECRET);
+const jwtExpired = detectJwt({ ...jwtCollected, jsCombined: `const t = "${expiredToken}";` });
+check('flags an expired hard-coded token as low', has(jwtExpired, (f) => f.type === 'jwt_expired' && f.severity === 'low'));
+
+// A still-valid token signed with a strong secret produces nothing.
+const validToken = signHs256({ alg: 'HS256', typ: 'JWT' }, { sub: '1', exp: Math.floor(Date.now() / 1000) + 86_400 }, STRONG_SECRET);
+const jwtValid = detectJwt({ ...jwtCollected, jsCombined: `const t = "${validToken}";` });
+check('does NOT flag a valid, strongly-signed token', jwtValid.length === 0);
 
 // --- Gitleaks hit classification (JWT roles + repo vs URL wording) ----------
 // A Supabase anon JWT (public by design — gated by RLS, not secrecy) and a

@@ -467,6 +467,80 @@ create policy "{{resource}}_owner_only"
     ],
   },
 
+  jwt_alg_none: {
+    title: 'A login token that anyone can forge (JWT "alg:none")',
+    category: 'auth',
+    defaultSeverity: 'high',
+    whatItMeans:
+      'We found a JSON Web Token (the thing that proves a user is logged in) that is marked "alg":"none" — meaning it carries NO signature at all. A signature is what stops someone hand-editing a token to say "I am the admin". If your server accepts unsigned tokens like this one, anyone can craft a token for any user and walk straight in. We did not send or test it anywhere — we only read it from your code.',
+    fixInstruction:
+      'My code contains a JWT using "alg":"none" (an unsigned token). Make sure my backend NEVER accepts unsigned tokens: always verify the signature with a fixed, strong algorithm (e.g. HS256 or RS256) and explicitly reject any token whose "alg" is "none". Do not pass the token-supplied algorithm into the verify call — pin the allowed algorithm on the server.',
+    fixSteps:
+      '1) Find where tokens are verified. 2) Pin the algorithm: pass an explicit allow-list (e.g. algorithms: ["HS256"]) to your JWT verify function and never trust the "alg" from the token header. 3) Confirm a token with "alg":"none" is rejected. 4) Rotate your signing secret/keys if unsigned tokens may have been accepted.',
+    codeExamples: [
+      {
+        stack: 'jsonwebtoken (Node)',
+        language: 'ts',
+        note: 'Always pass an explicit algorithms allow-list — this is what rejects "alg:none".',
+        code: `import jwt from "jsonwebtoken";
+
+// ❌ Vulnerable: no algorithms list — "alg":"none" tokens slip through
+const claims = jwt.verify(token, secret);
+
+// ✅ Fixed: pin the algorithm; an unsigned/none token is rejected
+const claims = jwt.verify(token, secret, { algorithms: ["HS256"] });`,
+      },
+    ],
+  },
+
+  jwt_weak_secret: {
+    title: 'Your login tokens are signed with a guessable secret',
+    category: 'auth',
+    defaultSeverity: 'critical',
+    whatItMeans:
+      'A JSON Web Token in your code is signed with the {{algorithm}} secret "{{secret}}" — a value we guessed from a tiny list of common defaults in a fraction of a second. The signing secret is the ONE thing that keeps a token from being forged. Because yours is public knowledge, anyone can mint a perfectly valid token for any account — including an admin — and your server will trust it completely. We proved this purely by re-computing the signature offline; nothing was sent anywhere.',
+    fixInstruction:
+      'My JWTs are signed with a weak, guessable secret ("{{secret}}"). Replace it with a long, random secret (at least 32 random bytes / 256 bits) stored in a server-side environment variable, never hard-coded. After rotating the secret, all existing tokens become invalid — that is expected and good. Make sure the secret is only ever read on the server.',
+    fixSteps:
+      '1) Generate a strong random secret, e.g. `openssl rand -base64 48`. 2) Put it in a server environment variable (JWT_SECRET) — never commit it. 3) Update token signing and verification to read it from the env var. 4) Deploy: this invalidates all current tokens, forcing a fresh, secure login. 5) If you suspect tokens were forged, also review recent privileged actions.',
+    codeExamples: [
+      {
+        stack: 'Generate + use a strong secret',
+        language: 'bash',
+        note: 'Never use words like "secret"/"changeme"/"your-256-bit-secret" — they are the first thing attackers try.',
+        code: `# Generate a 256-bit+ random secret
+openssl rand -base64 48
+
+# Store it as a server-side env var (do NOT hard-code it)
+# .env (server only):
+JWT_SECRET=Yk3...long-random-value...==`,
+      },
+      {
+        stack: 'jsonwebtoken (Node)',
+        language: 'ts',
+        code: `import jwt from "jsonwebtoken";
+
+const secret = process.env.JWT_SECRET; // strong, random, server-only
+if (!secret) throw new Error("JWT_SECRET is not set");
+
+const token = jwt.sign({ sub: user.id }, secret, { algorithm: "HS256", expiresIn: "1h" });
+const claims = jwt.verify(token, secret, { algorithms: ["HS256"] });`,
+      },
+    ],
+  },
+
+  jwt_expired: {
+    title: 'An expired login token is hard-coded in your code',
+    category: 'auth',
+    defaultSeverity: 'low',
+    whatItMeans:
+      'We found a JSON Web Token baked into your code whose expiry date has already passed. It cannot be used to log in right now, but a token should never be committed to source code in the first place — it usually means a real one was pasted in during testing and forgotten. The next one might still be valid, and tokens in code tend to leak through public bundles or git history.',
+    fixInstruction:
+      'There is a hard-coded (now expired) JWT in my code. Remove it. Tokens should be obtained at runtime from the login flow and kept in memory or a secure cookie, never written into source files. Check git history too, and rotate the signing secret if a still-valid token was ever committed.',
+    fixSteps:
+      '1) Delete the hard-coded token from the code. 2) Fetch tokens at runtime via your auth flow instead of pasting them in. 3) Search git history for other committed tokens (e.g. with gitleaks) and purge them. 4) If any committed token could still be valid, rotate the JWT signing secret so it can no longer be used.',
+  },
+
   graphql_introspection: {
     title: 'Your GraphQL API hands out its full schema',
     category: 'auth',
